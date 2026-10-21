@@ -12,11 +12,15 @@ jobs:
   export:
     name: Export game
     runs-on: ubuntu-latest
-    container:
-      image: barichello/godot-ci:4.4.1
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Install Godot and export templates
+        uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: true
 
       - name: Import project resources
         run: godot --headless --editor --path . --quit
