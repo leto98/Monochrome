@@ -1,0 +1,16 @@
+; Engine configuration file.
+; Monochrome - minimalist 3D exploration prototype.
+
+config_version=5
+
+[application]
+config/name="Monochrome"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+config/description="A minimalist monochrome 3D exploration game."
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+environment/defaults/default_clear_color=Color(0.025, 0.025, 0.03, 1)
