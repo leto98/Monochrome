@@ -1,0 +1,48 @@
+name: Build Windows and Linux
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Export game
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Import project resources
+        run: godot --headless --editor --path . --quit
+
+      - name: Build Windows version
+        run: |
+          mkdir -p build/windows
+          godot --headless --path . --export-release "Windows Desktop" build/windows/Monochrome.exe
+
+      - name: Build Linux version
+        run: |
+          mkdir -p build/linux
+          godot --headless --path . --export-release "Linux/X11" build/linux/Monochrome.x86_64
+
+      - name: Package builds
+        run: |
+          cd build
+          zip -r Monochrome-Windows.zip windows
+          zip -r Monochrome-Linux.zip linux
+
+      - name: Upload downloadable builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: Monochrome-Windows-and-Linux
+          path: |
+            build/Monochrome-Windows.zip
+            build/Monochrome-Linux.zip
+          if-no-files-found: error
+          retention-days: 14
