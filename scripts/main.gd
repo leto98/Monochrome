@@ -165,7 +165,6 @@ func _create_player() -> void:
 	player.name = "Boy"
 	player.position = Vector3(0, 0.95, 5.0)
 	player.set_script(load("res://scripts/player.gd"))
-	add_child(player)
 
 	var skin := _mat(Color(0.48, 0.48, 0.49))
 	var clothes := _mat(Color(0.25, 0.25, 0.26))
@@ -202,6 +201,7 @@ func _create_player() -> void:
 	camera.current = true
 	player.add_child(camera)
 	camera.look_at(player.global_position + Vector3(0, 0.5, -4), Vector3.UP)
+	add_child(player)
 
 func _create_ui() -> void:
 	var layer := CanvasLayer.new()
