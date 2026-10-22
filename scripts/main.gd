@@ -749,11 +749,11 @@ func _create_player() -> void:
 	var torso := MeshInstance3D.new()
 	torso.name = "Body"
 	var torso_mesh := CylinderMesh.new()
-	torso_mesh.top_radius = 0.205
-	torso_mesh.bottom_radius = 0.285
-	torso_mesh.height = 0.88
+	torso_mesh.top_radius = 0.19
+	torso_mesh.bottom_radius = 0.31
+	torso_mesh.height = 1.02
 	torso.mesh = torso_mesh
-	torso.position = Vector3(0.0, -0.20, 0.0)
+	torso.position = Vector3(0.0, -0.25, 0.0)
 	torso.scale = Vector3(1.0, 1.0, 0.78)
 	torso.material_override = clothing
 	player.add_child(torso)
@@ -814,19 +814,30 @@ func _create_player() -> void:
 	hair_cap.material_override = silhouette
 	player.add_child(hair_cap)
 
-	for tuft_data in [
-		Vector3(-0.22, 0.99, -0.005),
-		Vector3(-0.11, 1.015, 0.0),
-		Vector3(0.18, 0.94, 0.0)
+	# Shaggy, uneven locks around the crown and sides create the reference's wild silhouette.
+	for lock_data in [
+		[Vector3(-0.27, 0.80, -0.005), Vector3(0.19, 0.30, 0.22), -42.0],
+		[Vector3(-0.30, 0.66, -0.015), Vector3(0.17, 0.28, 0.22), -28.0],
+		[Vector3(-0.27, 0.49, -0.005), Vector3(0.16, 0.25, 0.20), -18.0],
+		[Vector3(-0.19, 0.94, 0.015), Vector3(0.17, 0.27, 0.22), -38.0],
+		[Vector3(-0.06, 1.00, 0.025), Vector3(0.15, 0.25, 0.20), -12.0],
+		[Vector3(0.10, 0.96, 0.025), Vector3(0.17, 0.26, 0.21), 18.0],
+		[Vector3(0.24, 0.84, 0.015), Vector3(0.17, 0.25, 0.21), 38.0],
+		[Vector3(0.29, 0.69, 0.015), Vector3(0.16, 0.23, 0.20), 28.0],
+		[Vector3(0.26, 0.52, 0.015), Vector3(0.15, 0.23, 0.20), 22.0],
+		[Vector3(-0.25, 0.91, -0.15), Vector3(0.16, 0.24, 0.18), -40.0],
+		[Vector3(-0.10, 1.04, -0.10), Vector3(0.15, 0.25, 0.18), -18.0],
+		[Vector3(0.08, 1.02, -0.10), Vector3(0.16, 0.24, 0.18), 12.0],
+		[Vector3(0.22, 0.91, -0.12), Vector3(0.16, 0.24, 0.18), 32.0]
 	]:
-		var tuft := MeshInstance3D.new()
-		var tuft_mesh := PrismMesh.new()
-		tuft_mesh.size = Vector3(0.16, 0.20, 0.20)
-		tuft.mesh = tuft_mesh
-		tuft.position = tuft_data
-		tuft.rotation.z = deg_to_rad(-12.0)
-		tuft.material_override = silhouette
-		player.add_child(tuft)
+		var lock := MeshInstance3D.new()
+		var lock_mesh := PrismMesh.new()
+		lock_mesh.size = lock_data[1]
+		lock.mesh = lock_mesh
+		lock.position = lock_data[0]
+		lock.rotation.z = deg_to_rad(lock_data[2])
+		lock.material_override = silhouette
+		player.add_child(lock)
 
 	# Slim arms begin at shoulder height and hang naturally beside the coat.
 	var arm_mesh := CapsuleMesh.new()
@@ -884,11 +895,11 @@ func _create_player() -> void:
 		var eye := MeshInstance3D.new()
 		eye.name = "Eye_%s" % ("L" if side < 0 else "R")
 		var eye_mesh := SphereMesh.new()
-		eye_mesh.radius = 0.038
-		eye_mesh.height = 0.09
+		eye_mesh.radius = 0.052
+		eye_mesh.height = 0.15
 		eye.mesh = eye_mesh
-		eye.position = Vector3(side * 0.125, 0.66, -0.292)
-		eye.scale = Vector3(0.78, 1.0, 0.55)
+		eye.position = Vector3(side * 0.12, 0.66, -0.296)
+		eye.scale = Vector3(0.72, 1.0, 0.42)
 		eye.material_override = eye_material
 		player.add_child(eye)
 
