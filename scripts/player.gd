@@ -16,20 +16,22 @@ const CAMERA_HEIGHTS := [2.29, 1.04, 0.04]
 const CAMERA_MODE_NAMES := ["Far third-person", "Close third-person", "First-person"]
 const MIN_CAMERA_PITCH := deg_to_rad(-55.0)
 const MAX_CAMERA_PITCH := deg_to_rad(25.0)
-const WALK_ANIMATION_SPEED := 8.5
-const RUN_ANIMATION_SPEED := 12.0
+const WALK_ANIMATION_SPEED := 7.5
+const RUN_ANIMATION_SPEED := 10.5
 const AUDIO_RATE := 22050
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var camera: Camera3D = $CameraPivot/Camera3D
-@onready var left_arm: Node3D = get_node_or_null("UpperArm_L")
-@onready var right_arm: Node3D = get_node_or_null("UpperArm_R")
-@onready var left_forearm: Node3D = get_node_or_null("UpperArm_L/Forearm_L")
-@onready var right_forearm: Node3D = get_node_or_null("UpperArm_R/Forearm_R")
-@onready var left_leg: Node3D = get_node_or_null("Leg_L")
-@onready var right_leg: Node3D = get_node_or_null("Leg_R")
-@onready var left_foot: Node3D = get_node_or_null("Foot_L")
-@onready var right_foot: Node3D = get_node_or_null("Foot_R")
+@onready var left_arm: Node3D = get_node_or_null("Shoulder_L")
+@onready var right_arm: Node3D = get_node_or_null("Shoulder_R")
+@onready var left_forearm: Node3D = get_node_or_null("Shoulder_L/Forearm_L")
+@onready var right_forearm: Node3D = get_node_or_null("Shoulder_R/Forearm_R")
+@onready var left_leg: Node3D = get_node_or_null("Thigh_L")
+@onready var right_leg: Node3D = get_node_or_null("Thigh_R")
+@onready var left_calf: Node3D = get_node_or_null("Thigh_L/Calf_L")
+@onready var right_calf: Node3D = get_node_or_null("Thigh_R/Calf_R")
+@onready var left_foot: Node3D = get_node_or_null("Thigh_L/Calf_L/Foot_L")
+@onready var right_foot: Node3D = get_node_or_null("Thigh_R/Calf_R/Foot_R")
 @onready var movement_audio: AudioStreamPlayer3D = _create_audio_player()
 
 var jump_requested := false
@@ -42,6 +44,9 @@ var camera_base_pitch := 0.0
 var camera_mode := 0
 var footstep_clock := 0.0
 var was_on_floor := true
+var mantle_timer := 0.0
+var mantle_direction := Vector3.ZERO
+var climbing := false
 
 func _ready() -> void:
 	camera_base_pitch = camera_pivot.rotation.x
@@ -88,9 +93,18 @@ func _physics_process(delta: float) -> void:
 
 	# Jump is triggered once per key press, not repeatedly while Space is held.
 	if jump_requested and is_on_floor():
-		velocity.y = JUMP_VELOCITY
-		_play_movement_sound("jump", -7.0)
+		if _try_start_mantle():
+			_play_movement_sound("jump", -7.0)
+		else:
+			velocity.y = JUMP_VELOCITY
+			_play_movement_sound("jump", -7.0)
 	jump_requested = false
+	if climbing:
+		mantle_timer -= delta
+		velocity.x = mantle_direction.x
+		velocity.z = mantle_direction.z
+		if mantle_timer <= 0.0:
+			climbing = false
 
 	var input_dir := Vector2.ZERO
 	if not free_look_active:
@@ -123,6 +137,23 @@ func _physics_process(delta: float) -> void:
 		_play_movement_sound("land", -8.0)
 	was_on_floor = is_on_floor()
 
+
+func _try_start_mantle() -> bool:
+	var space := get_world_3d().direct_space_state
+	var forward := -global_transform.basis.z
+	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 0.55, global_position + Vector3.UP * 0.55 + forward * 1.05)
+	query.exclude = [get_rid()]
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		return false
+	var obstacle_height := float(hit.position.y - global_position.y)
+	if obstacle_height < -0.15 or obstacle_height > 1.0:
+		return false
+	climbing = true
+	mantle_timer = 0.42
+	mantle_direction = forward * 2.8
+	velocity.y = 3.6
+	return true
 
 func _create_audio_player() -> AudioStreamPlayer3D:
 	var audio := AudioStreamPlayer3D.new()
@@ -214,33 +245,32 @@ func _update_limb_animation(delta: float, input_strength: float) -> void:
 	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
 	var is_running := Input.is_key_pressed(KEY_SHIFT)
 	var is_moving := is_on_floor() and input_strength > 0.0 and horizontal_speed > 0.2
-
 	if is_moving:
-		var cycle_speed := RUN_ANIMATION_SPEED if is_running else WALK_ANIMATION_SPEED
-		animation_time += delta * cycle_speed
+		animation_time += delta * (RUN_ANIMATION_SPEED if is_running else WALK_ANIMATION_SPEED)
 		movement_amount = move_toward(movement_amount, 1.0, delta * 7.0)
 	else:
-		movement_amount = move_toward(movement_amount, 0.0, delta * 6.0)
-
-	var swing := sin(animation_time) * 0.48 * movement_amount
-	var opposite_swing := sin(animation_time + PI) * 0.48 * movement_amount
-	var air_pose := 0.0
-	if not is_on_floor():
-		air_pose = clampf(velocity.y / JUMP_VELOCITY, -1.0, 1.0) * 0.12
-
-	if left_leg:
-		left_leg.rotation.x = swing + air_pose
-	if right_leg:
-		right_leg.rotation.x = opposite_swing + air_pose
-	if left_arm:
-		left_arm.rotation.x = opposite_swing - air_pose
-	if right_arm:
-		right_arm.rotation.x = swing - air_pose
-	if left_forearm:
-		left_forearm.rotation.x = opposite_swing * 0.45
-	if right_forearm:
-		right_forearm.rotation.x = swing * 0.45
-	if left_foot:
-		left_foot.rotation.x = swing * 0.25
-	if right_foot:
-		right_foot.rotation.x = opposite_swing * 0.25
+		movement_amount = move_toward(movement_amount, 0.0, delta * 5.0)
+	var swing := sin(animation_time) * 0.62 * movement_amount
+	var opposite_swing := sin(animation_time + PI) * 0.62 * movement_amount
+	var climbing_pose := climbing or (not is_on_floor() and velocity.y > 0.2)
+	if climbing_pose:
+		var reach := sin(animation_time * 2.0) * 0.3
+		if left_leg: left_leg.rotation.x = -0.65 + reach
+		if right_leg: right_leg.rotation.x = -0.2 - reach
+		if left_calf: left_calf.rotation.x = -0.75 if sin(animation_time * 2.0) > 0.0 else -0.15
+		if right_calf: right_calf.rotation.x = -0.15 if sin(animation_time * 2.0) > 0.0 else -0.75
+		if left_arm: left_arm.rotation.x = -1.65 + reach
+		if right_arm: right_arm.rotation.x = -1.65 - reach
+		if left_forearm: left_forearm.rotation.x = -0.85
+		if right_forearm: right_forearm.rotation.x = -0.85
+	else:
+		if left_leg: left_leg.rotation.x = swing
+		if right_leg: right_leg.rotation.x = opposite_swing
+		if left_calf: left_calf.rotation.x = maxf(0.0, sin(animation_time + PI * 0.5)) * 0.65 * movement_amount
+		if right_calf: right_calf.rotation.x = maxf(0.0, sin(animation_time + PI * 1.5)) * 0.65 * movement_amount
+		if left_arm: left_arm.rotation.x = opposite_swing * 0.8
+		if right_arm: right_arm.rotation.x = swing * 0.8
+		if left_forearm: left_forearm.rotation.x = -0.12 + absf(opposite_swing) * 0.25
+		if right_forearm: right_forearm.rotation.x = -0.12 + absf(swing) * 0.25
+	if left_foot: left_foot.rotation.x = -0.15 + swing * 0.35
+	if right_foot: right_foot.rotation.x = -0.15 + opposite_swing * 0.35
