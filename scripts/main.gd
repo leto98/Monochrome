@@ -35,6 +35,8 @@ func _ready() -> void:
 	interaction_audio.max_distance = 16.0
 	interaction_audio.unit_size = 4.0
 	add_child(interaction_audio)
+	player.process_mode = Node.PROCESS_MODE_PAUSABLE
+	get_tree().paused = true
 
 func _process(_delta: float) -> void:
 	if not game_started or is_paused:
@@ -529,6 +531,7 @@ func _create_player() -> void:
 	player.name = "Boy"
 	player.position = Vector3(0, 0.95, 5.0)
 	player.set_script(load("res://scripts/player.gd"))
+	player.process_mode = Node.PROCESS_MODE_PAUSABLE
 
 	# Stylized human silhouette based on the supplied reference: oversized head,
 	# soft blocky hair, narrow neck, simple rounded tunic, short arms and slim legs.
