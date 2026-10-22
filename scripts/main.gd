@@ -12,6 +12,7 @@ var door: MeshInstance3D
 var prompt: Label
 var inside_message: Label
 var door_open := false
+var interaction_audio: AudioStreamPlayer3D
 
 func _ready() -> void:
 	_create_environment()
@@ -22,6 +23,12 @@ func _ready() -> void:
 	_create_house()
 	_create_player()
 	_create_ui()
+	interaction_audio = AudioStreamPlayer3D.new()
+	interaction_audio.name = "WorldInteractionAudio"
+	interaction_audio.volume_db = -10.0
+	interaction_audio.max_distance = 16.0
+	interaction_audio.unit_size = 4.0
+	add_child(interaction_audio)
 
 func _process(_delta: float) -> void:
 	if player == null:
@@ -35,9 +42,36 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_E and player.global_position.distance_to(DOOR_POSITION) <= INTERACTION_DISTANCE:
 			door_open = true
+			_play_door_sound()
 			door.rotation_degrees.y = -75.0
 			prompt.visible = false
 			inside_message.visible = true
+
+
+func _play_door_sound() -> void:
+	# A quiet wooden latch followed by a short, rough hinge creak.
+	var rate := 22050
+	var duration := 0.48
+	var count := int(rate * duration)
+	var bytes := PackedByteArray()
+	bytes.resize(count * 2)
+	for i in range(count):
+		var t := float(i) / rate
+		var envelope := exp(-t * 5.0)
+		var noise := randf_range(-1.0, 1.0)
+		var creak_frequency := lerpf(260.0, 115.0, t / duration)
+		var creak := sin(TAU * creak_frequency * t) * 0.24
+		var latch := sin(TAU * 780.0 * t) * exp(-t * 65.0) * 0.42
+		var sample := (noise * 0.18 + creak + latch) * envelope
+		bytes.encode_s16(i * 2, int(clampf(sample, -1.0, 1.0) * 9500.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = rate
+	stream.stereo = false
+	stream.data = bytes
+	interaction_audio.stream = stream
+	interaction_audio.pitch_scale = randf_range(0.94, 1.04)
+	interaction_audio.play()
 
 func _mat(color: Color, roughness := 1.0) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
