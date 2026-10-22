@@ -509,7 +509,7 @@ func _create_player() -> void:
 	camera.position = Vector3(0.0, 1.65, 6.8)
 	camera.current = true
 	camera_pivot.add_child(camera)
-	camera.look_at(Vector3.ZERO, Vector3.UP)
+	camera.look_at(camera_pivot.global_position, Vector3.UP)
 	add_child(player)
 
 func _create_ui() -> void:
