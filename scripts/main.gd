@@ -625,7 +625,7 @@ func _create_house() -> void:
 	house.position = HOUSE_POSITION
 	add_child(house)
 
-	# A secluded old log cabin with a steep weathered roof and deep porch.
+	# Keep the cabin geometry deliberately simple and robust for Godot runtime.
 	var log_dark := _mat(Color(0.105, 0.085, 0.075))
 	var log_mid := _mat(Color(0.19, 0.14, 0.105))
 	var log_light := _mat(Color(0.27, 0.20, 0.14))
@@ -641,18 +641,19 @@ func _create_house() -> void:
 	window_glow.emission = Color(1.0, 0.34, 0.045)
 	window_glow.emission_energy_multiplier = 2.8
 
-	# Low stone foundation, dark log walls and a distinct triangular front gable.
 	_mesh_box(house, "StoneFoundation", Vector3(6.4, 0.38, 4.9), Vector3(0, 0.19, 0), stone_material)
 	_mesh_box(house, "CabinBody", Vector3(6.0, 2.65, 4.5), Vector3(0, 1.55, 0), log_dark)
 
-	# Individual horizontal logs make the walls read as an old timber cabin.
+	# Visible horizontal timber courses on each wall.
 	for row in range(10):
 		var y := 0.48 + float(row) * 0.245
-		var log_material: Material = log_mid if row % 2 == 0 else log_light
-		_mesh_box(house, "FrontWallLog_%02d" % row, Vector3(6.08, 0.105, 0.10), Vector3(0, y, 2.27), log_material)
-		_mesh_box(house, "BackWallLog_%02d" % row, Vector3(6.08, 0.105, 0.10), Vector3(0, y, -2.27), log_material)
-		_mesh_box(house, "LeftWallLog_%02d" % row, Vector3(0.10, 0.105, 4.52), Vector3(-3.02, y, 0), log_material)
-		_mesh_box(house, "RightWallLog_%02d" % row, Vector3(0.10, 0.105, 4.52), Vector3(3.02, y, 0), log_material)
+		var course_material := log_mid
+		if row % 2 == 1:
+			course_material = log_light
+		_mesh_box(house, "FrontWallLog_%02d" % row, Vector3(6.08, 0.105, 0.10), Vector3(0, y, 2.27), course_material)
+		_mesh_box(house, "BackWallLog_%02d" % row, Vector3(6.08, 0.105, 0.10), Vector3(0, y, -2.27), course_material)
+		_mesh_box(house, "LeftWallLog_%02d" % row, Vector3(0.10, 0.105, 4.52), Vector3(-3.02, y, 0), course_material)
+		_mesh_box(house, "RightWallLog_%02d" % row, Vector3(0.10, 0.105, 4.52), Vector3(3.02, y, 0), course_material)
 
 	var gable := MeshInstance3D.new()
 	gable.name = "TriangularFrontGable"
@@ -663,7 +664,6 @@ func _create_house() -> void:
 	gable.material_override = log_mid
 	house.add_child(gable)
 
-	# Steeper slate roof, with overhanging eaves and visible narrow weathered boards.
 	var roof_left := _mesh_box(house, "RoofLeftSlope", Vector3(3.95, 0.20, 5.35), Vector3(-1.57, 3.55, 0), roof_material)
 	roof_left.rotation.z = deg_to_rad(37.0)
 	var roof_right := _mesh_box(house, "RoofRightSlope", Vector3(3.95, 0.20, 5.35), Vector3(1.57, 3.55, 0), roof_material)
@@ -675,11 +675,10 @@ func _create_house() -> void:
 		var right_board := _mesh_box(house, "RoofWeatheringR_%02d" % i, Vector3(3.65, 0.025, 0.035), Vector3(1.57, 3.66, z), roof_light if i % 3 == 0 else roof_material)
 		right_board.rotation.z = deg_to_rad(-37.0)
 
-	# A short stone chimney rises behind the roof ridge.
 	_mesh_box(house, "Chimney", Vector3(0.48, 1.45, 0.48), Vector3(1.45, 4.35, -1.15), stone_material)
 	_mesh_box(house, "ChimneyCap", Vector3(0.62, 0.12, 0.62), Vector3(1.45, 5.08, -1.15), log_dark)
 
-	# Recessed entrance and a simple old plank door; retain the existing E interaction.
+	# Door names and position remain compatible with the existing interaction logic.
 	_mesh_box(house, "Doorway", Vector3(1.25, 2.18, 0.08), Vector3(0, 1.25, 2.31), _mat(Color(0.025, 0.022, 0.02)))
 	door = _mesh_box(house, "Door", Vector3(0.98, 2.02, 0.12), Vector3(-0.48, 1.02, 2.39), log_dark)
 	door.rotation_degrees.y = 0.0
@@ -690,21 +689,27 @@ func _create_house() -> void:
 	_mesh_box(house, "DoorKnob", Vector3(0.07, 0.07, 0.07), Vector3(-0.18, 1.0, 2.27), _mat(Color(0.68, 0.48, 0.20)))
 	_mesh_box(house, "FrontStep", Vector3(2.0, 0.18, 0.72), Vector3(0, 0.12, 2.85), stone_material)
 
-	# Two warm ground-floor windows and a small lit attic window.
-	for window_data in [Vector3(-1.85, 1.75, 2.34), Vector3(1.75, 1.75, 2.34), Vector3(0.0, 3.55, 2.36)]:
-		var is_attic := window_data.y > 3.0
-		var w := 0.78 if is_attic else 0.92
-		var h := 0.88 if is_attic else 0.82
-		_mesh_box(house, "WindowFrame", Vector3(w + 0.18, h + 0.18, 0.13), window_data, window_frame)
-		_mesh_box(house, "GlowingWindow", Vector3(w, h, 0.035), Vector3(window_data.x, window_data.y, 2.265), window_glow)
-		_mesh_box(house, "WindowCrossbarV", Vector3(0.045, h, 0.045), Vector3(window_data.x, window_data.y, 2.23), trim_material)
-		_mesh_box(house, "WindowCrossbarH", Vector3(w, 0.045, 0.045), Vector3(window_data.x, window_data.y, 2.23), trim_material)
+	# Warm windows: two at ground level and one in the attic gable.
+	for window_index in range(3):
+		var wx := -1.85
+		var wy := 1.75
+		var ww := 0.92
+		var wh := 0.82
+		if window_index == 1:
+			wx = 1.75
+		elif window_index == 2:
+			wx = 0.0
+			wy = 3.55
+			ww = 0.78
+			wh = 0.88
+		_mesh_box(house, "WindowFrame_%d" % window_index, Vector3(ww + 0.18, wh + 0.18, 0.13), Vector3(wx, wy, 2.34), window_frame)
+		_mesh_box(house, "GlowingWindow_%d" % window_index, Vector3(ww, wh, 0.035), Vector3(wx, wy, 2.265), window_glow)
+		_mesh_box(house, "WindowCrossbarV_%d" % window_index, Vector3(0.045, wh, 0.045), Vector3(wx, wy, 2.23), trim_material)
+		_mesh_box(house, "WindowCrossbarH_%d" % window_index, Vector3(ww, 0.045, 0.045), Vector3(wx, wy, 2.23), trim_material)
 
-	# Narrow glowing side window visible from the approach angle.
 	_mesh_box(house, "SideWindowFrame", Vector3(0.12, 0.72, 0.72), Vector3(3.07, 1.72, -0.65), window_frame)
 	_mesh_box(house, "SideGlowingWindow", Vector3(0.04, 0.54, 0.52), Vector3(3.145, 1.72, -0.65), window_glow)
 
-	# Deep, low porch roof with dark timber supports and a simple railing.
 	var porch_roof := _mesh_box(house, "PorchRoof", Vector3(4.15, 0.18, 1.85), Vector3(0, 2.65, 3.05), roof_material)
 	porch_roof.rotation.x = deg_to_rad(5.0)
 	for x in [-1.75, 1.75]:
@@ -712,7 +717,6 @@ func _create_house() -> void:
 		_mesh_box(house, "PorchPostFoot", Vector3(0.25, 0.16, 0.25), Vector3(x, 0.15, 3.78), log_light)
 	_mesh_box(house, "PorchRailing", Vector3(1.2, 0.10, 0.10), Vector3(1.10, 0.75, 3.76), log_mid)
 
-	# Low amber light spills out onto the ground in front of the cabin.
 	var porch_light := OmniLight3D.new()
 	porch_light.name = "WarmWindowSpill"
 	porch_light.position = Vector3(0, 1.9, 3.0)
