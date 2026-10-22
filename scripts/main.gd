@@ -856,7 +856,6 @@ func _create_expanded_landscape() -> void:
 		var rock_shape_node := CollisionShape3D.new()
 		var rock_shape := SphereShape3D.new()
 		rock_shape.radius = maxf(rock.scale.x, rock.scale.z) * 0.82
-		rock_shape.height = maxf(rock.scale.y * 1.5, rock_shape.radius * 1.2)
 		rock_shape_node.shape = rock_shape
 		rock_body.add_child(rock_shape_node)
 		add_child(rock_body)
