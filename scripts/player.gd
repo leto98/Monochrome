@@ -11,6 +11,9 @@ const GRAVITY := 16.0
 const MOUSE_SENSITIVITY := 0.0025
 const FREE_LOOK_SENSITIVITY := 0.0025
 const FREE_LOOK_RETURN_SPEED := 8.0
+const CAMERA_DISTANCES := [6.8, 3.4, 0.36]
+const CAMERA_HEIGHTS := [1.65, 0.75, 0.03]
+const CAMERA_MODE_NAMES := ["Far third-person", "Close third-person", "First-person"]
 const MIN_CAMERA_PITCH := deg_to_rad(-55.0)
 const MAX_CAMERA_PITCH := deg_to_rad(25.0)
 const WALK_ANIMATION_SPEED := 8.5
@@ -34,6 +37,7 @@ var free_look_active := false
 var free_look_yaw := 0.0
 var free_look_pitch := 0.0
 var camera_base_pitch := 0.0
+var camera_mode := 0
 
 func _ready() -> void:
 	camera_base_pitch = camera_pivot.rotation.x
@@ -66,6 +70,8 @@ func _input(event: InputEvent) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		elif event.keycode == KEY_SPACE and not free_look_active:
 			jump_requested = true
+		elif event.keycode == KEY_V:
+			_cycle_camera_mode()
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -106,6 +112,20 @@ func _physics_process(delta: float) -> void:
 	velocity.z = horizontal_velocity.z
 	move_and_slide()
 	_update_limb_animation(delta, input_dir.length())
+
+func _cycle_camera_mode() -> void:
+	camera_mode = (camera_mode + 1) % CAMERA_DISTANCES.size()
+	_apply_camera_mode()
+
+func _apply_camera_mode() -> void:
+	# The camera remains attached to the orbit pivot so free-look still circles the character.
+	if camera_mode == 2:
+		# Place the camera just in front of the face for first-person view.
+		camera.position = Vector3(0.0, CAMERA_HEIGHTS[camera_mode], -CAMERA_DISTANCES[camera_mode])
+		camera.look_at(camera.global_position + -camera_pivot.global_basis.z * 10.0, Vector3.UP)
+	else:
+		camera.position = Vector3(0.0, CAMERA_HEIGHTS[camera_mode], CAMERA_DISTANCES[camera_mode])
+		camera.look_at(camera_pivot.global_position, Vector3.UP)
 
 func _update_free_look(delta: float) -> void:
 	if free_look_active:
