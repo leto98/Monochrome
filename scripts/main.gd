@@ -745,17 +745,40 @@ func _create_player() -> void:
 	eye_material.emission = Color(0.95, 0.95, 1.0)
 	eye_material.emission_energy_multiplier = 2.2
 
-	# Main torso: slightly wider at the shoulders and rounded at the hem.
+	# Long, simple shadow-coat silhouette, with a slightly flared hem.
 	var torso := MeshInstance3D.new()
 	torso.name = "Body"
-	var torso_mesh := CapsuleMesh.new()
-	torso_mesh.radius = 0.255
-	torso_mesh.height = 0.82
+	var torso_mesh := CylinderMesh.new()
+	torso_mesh.top_radius = 0.205
+	torso_mesh.bottom_radius = 0.285
+	torso_mesh.height = 0.88
 	torso.mesh = torso_mesh
-	torso.position = Vector3(0.0, -0.17, 0.0)
-	torso.scale = Vector3(0.92, 1.0, 0.72)
+	torso.position = Vector3(0.0, -0.20, 0.0)
+	torso.scale = Vector3(1.0, 1.0, 0.78)
 	torso.material_override = clothing
 	player.add_child(torso)
+
+	# Raised, folded collar that frames the underside of the unchanged head.
+	var collar := MeshInstance3D.new()
+	collar.name = "RaisedCollar"
+	var collar_mesh := CylinderMesh.new()
+	collar_mesh.top_radius = 0.15
+	collar_mesh.bottom_radius = 0.205
+	collar_mesh.height = 0.18
+	collar.mesh = collar_mesh
+	collar.position = Vector3(0.0, 0.27, -0.005)
+	collar.material_override = silhouette
+	player.add_child(collar)
+
+	# Subtle dark coat-front seam, visible only in the light.
+	var coat_seam := MeshInstance3D.new()
+	coat_seam.name = "CoatFrontSeam"
+	var seam_mesh := BoxMesh.new()
+	seam_mesh.size = Vector3(0.012, 0.58, 0.012)
+	coat_seam.mesh = seam_mesh
+	coat_seam.position = Vector3(0.0, -0.22, -0.222)
+	coat_seam.material_override = silhouette
+	player.add_child(coat_seam)
 
 	var neck := MeshInstance3D.new()
 	neck.name = "Neck"
@@ -805,53 +828,53 @@ func _create_player() -> void:
 		tuft.material_override = silhouette
 		player.add_child(tuft)
 
-	# Arms rest close to the body so they read as a single clean silhouette.
+	# Slim arms begin at shoulder height and hang naturally beside the coat.
 	var arm_mesh := CapsuleMesh.new()
-	arm_mesh.radius = 0.085
-	arm_mesh.height = 0.54
+	arm_mesh.radius = 0.055
+	arm_mesh.height = 0.59
 	for side in [-1.0, 1.0]:
 		var arm := Node3D.new()
 		arm.name = "UpperArm_%s" % ("L" if side < 0 else "R")
-		arm.position = Vector3(side * 0.235, 0.02, 0.0)
+		arm.position = Vector3(side * 0.235, 0.12, 0.0)
 		player.add_child(arm)
 		var arm_visual := MeshInstance3D.new()
 		arm_visual.name = "ArmMesh"
 		arm_visual.mesh = arm_mesh
-		arm_visual.position = Vector3(side * 0.015, -0.25, 0.0)
-		arm_visual.rotation.z = side * deg_to_rad(-7.0)
+		arm_visual.position = Vector3(side * 0.012, -0.275, 0.0)
+		arm_visual.rotation.z = side * deg_to_rad(-10.0)
 		arm_visual.material_override = clothing
 		arm.add_child(arm_visual)
 
 		var hand := MeshInstance3D.new()
 		hand.name = "Hand_%s" % ("L" if side < 0 else "R")
 		var hand_mesh := SphereMesh.new()
-		hand_mesh.radius = 0.065
-		hand_mesh.height = 0.13
+		hand_mesh.radius = 0.043
+		hand_mesh.height = 0.105
 		hand.mesh = hand_mesh
-		hand.position = Vector3(side * 0.025, -0.53, -0.005)
-		hand.scale = Vector3(0.9, 1.0, 0.8)
+		hand.position = Vector3(side * 0.02, -0.575, -0.012)
+		hand.scale = Vector3(0.72, 1.0, 0.72)
 		hand.material_override = silhouette
 		arm.add_child(hand)
 
-	# Short, slim trouser legs and narrow feet, kept separate for the walk cycle.
+	# Narrow, separated legs and understated shoes, kept independent for the walk cycle.
 	var leg_mesh := CapsuleMesh.new()
-	leg_mesh.radius = 0.085
-	leg_mesh.height = 0.52
+	leg_mesh.radius = 0.055
+	leg_mesh.height = 0.56
 	for side in [-1.0, 1.0]:
 		var leg := MeshInstance3D.new()
 		leg.name = "Leg_%s" % ("L" if side < 0 else "R")
 		leg.mesh = leg_mesh
-		leg.position = Vector3(side * 0.105, -0.59, 0.0)
+		leg.position = Vector3(side * 0.105, -0.62, 0.0)
 		leg.material_override = clothing
 		player.add_child(leg)
 
 		var foot := MeshInstance3D.new()
 		foot.name = "Foot_%s" % ("L" if side < 0 else "R")
 		var foot_mesh := CapsuleMesh.new()
-		foot_mesh.radius = 0.055
-		foot_mesh.height = 0.25
+		foot_mesh.radius = 0.042
+		foot_mesh.height = 0.22
 		foot.mesh = foot_mesh
-		foot.position = Vector3(side * 0.105, -0.84, -0.055)
+		foot.position = Vector3(side * 0.105, -0.87, -0.065)
 		foot.rotation.x = deg_to_rad(90.0)
 		foot.material_override = silhouette
 		player.add_child(foot)
