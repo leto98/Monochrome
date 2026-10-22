@@ -498,12 +498,18 @@ func _create_player() -> void:
 	collider.shape = capsule
 	player.add_child(collider)
 
+	# The camera sits on a pivot near the character's centre, allowing true orbiting.
+	var camera_pivot := Node3D.new()
+	camera_pivot.name = "CameraPivot"
+	camera_pivot.position = Vector3(0.0, 0.65, 0.0)
+	player.add_child(camera_pivot)
+
 	var camera := Camera3D.new()
 	camera.name = "Camera3D"
-	camera.position = Vector3(0, 3.0, 6.8)
+	camera.position = Vector3(0.0, 1.65, 6.8)
 	camera.current = true
-	player.add_child(camera)
-	camera.look_at(player.global_position + Vector3(0, 0.5, -4), Vector3.UP)
+	camera_pivot.add_child(camera)
+	camera.look_at(Vector3.ZERO, Vector3.UP)
 	add_child(player)
 
 func _create_ui() -> void:
