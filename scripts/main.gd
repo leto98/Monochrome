@@ -97,14 +97,19 @@ func _make_menu_panel(parent: Node, panel_name: String) -> Control:
 	var panel := ColorRect.new()
 	panel.name = panel_name
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	panel.color = Color(0.015, 0.015, 0.02, 0.94)
+	panel.color = Color(0.015, 0.015, 0.02, 0.82)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	parent.add_child(panel)
 
 	var column := VBoxContainer.new()
-	column.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	column.position = Vector2(-190.0, -145.0)
-	column.size = Vector2(380.0, 290.0)
+	column.anchor_left = 0.5
+	column.anchor_top = 0.5
+	column.anchor_right = 0.5
+	column.anchor_bottom = 0.5
+	column.offset_left = -190.0
+	column.offset_top = -190.0
+	column.offset_right = 190.0
+	column.offset_bottom = 190.0
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override("separation", 18)
 	panel.add_child(column)
