@@ -33,6 +33,8 @@ func _ready() -> void:
 	_create_player()
 	_create_ui()
 	_create_menu_screens()
+	# The title screen uses clickable UI, so never start with the mouse captured.
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	interaction_audio = AudioStreamPlayer3D.new()
 	interaction_audio.name = "WorldInteractionAudio"
 	interaction_audio.volume_db = -10.0
@@ -80,6 +82,7 @@ func _create_menu_screens() -> void:
 	add_child(layer)
 
 	title_screen = _make_menu_panel(layer, "TitleScreen")
+	title_screen.mouse_filter = Control.MOUSE_FILTER_STOP
 	_add_menu_title(title_screen, "MONOCHROME")
 	_add_menu_subtitle(title_screen, "A quiet place beyond the trees")
 	_add_menu_button(title_screen, "PLAY GAME", _start_game)
