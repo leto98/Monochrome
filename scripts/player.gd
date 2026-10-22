@@ -16,7 +16,8 @@ const MAX_CAMERA_PITCH := deg_to_rad(25.0)
 const WALK_ANIMATION_SPEED := 8.5
 const RUN_ANIMATION_SPEED := 12.0
 
-@onready var camera: Camera3D = $Camera3D
+@onready var camera_pivot: Node3D = $CameraPivot
+@onready var camera: Camera3D = $CameraPivot/Camera3D
 @onready var left_arm: Node3D = get_node_or_null("UpperArm_L")
 @onready var right_arm: Node3D = get_node_or_null("UpperArm_R")
 @onready var left_forearm: Node3D = get_node_or_null("UpperArm_L/Forearm_L")
@@ -32,11 +33,10 @@ var movement_amount := 0.0
 var free_look_active := false
 var free_look_yaw := 0.0
 var free_look_pitch := 0.0
-var camera_base_yaw := 0.0
+var camera_base_pitch := 0.0
 
 func _ready() -> void:
-	camera.look_at(global_position + Vector3(0.0, 0.8, 0.0), Vector3.UP)
-	camera_base_yaw = camera.rotation.y
+	camera_base_pitch = camera_pivot.rotation.x
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _input(event: InputEvent) -> void:
@@ -57,8 +57,8 @@ func _input(event: InputEvent) -> void:
 			free_look_pitch = clampf(free_look_pitch, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH)
 		else:
 			rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
-			camera.rotate_x(-event.relative.y * MOUSE_SENSITIVITY)
-			camera.rotation.x = clampf(camera.rotation.x, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH)
+			camera_base_pitch = clampf(camera_base_pitch - event.relative.y * MOUSE_SENSITIVITY, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH)
+			camera_pivot.rotation.x = camera_base_pitch
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -109,17 +109,17 @@ func _physics_process(delta: float) -> void:
 
 func _update_free_look(delta: float) -> void:
 	if free_look_active:
-		# Rotate only the camera, not the player body or movement direction.
-		camera.rotation.y = camera_base_yaw + free_look_yaw
-		camera.rotation.x = clampf(free_look_pitch, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH)
+		# Orbit around the character's centre instead of spinning the camera in place.
+		camera_pivot.rotation.y = free_look_yaw
+		camera_pivot.rotation.x = clampf(camera_base_pitch + free_look_pitch, MIN_CAMERA_PITCH, MAX_CAMERA_PITCH)
 	else:
-		# Smoothly return the view behind the character when Left Alt is released.
-		camera.rotation.y = lerp_angle(camera.rotation.y, camera_base_yaw, delta * FREE_LOOK_RETURN_SPEED)
-		camera.rotation.x = lerpf(camera.rotation.x, 0.0, delta * FREE_LOOK_RETURN_SPEED)
-		if absf(camera.rotation.y - camera_base_yaw) < 0.005:
-			camera.rotation.y = camera_base_yaw
-		if absf(camera.rotation.x) < 0.005:
-			camera.rotation.x = 0.0
+		# Return smoothly to the normal over-the-shoulder view after Left Alt is released.
+		camera_pivot.rotation.y = lerp_angle(camera_pivot.rotation.y, 0.0, delta * FREE_LOOK_RETURN_SPEED)
+		camera_pivot.rotation.x = lerpf(camera_pivot.rotation.x, camera_base_pitch, delta * FREE_LOOK_RETURN_SPEED)
+		if absf(camera_pivot.rotation.y) < 0.005:
+			camera_pivot.rotation.y = 0.0
+		if absf(camera_pivot.rotation.x - camera_base_pitch) < 0.005:
+			camera_pivot.rotation.x = camera_base_pitch
 
 func _update_limb_animation(delta: float, input_strength: float) -> void:
 	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
