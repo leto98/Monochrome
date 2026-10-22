@@ -17,6 +17,9 @@ var title_screen: Control
 var pause_screen: Control
 var game_started := false
 var is_paused := false
+var sound_enabled := true
+var title_sound_button: Button
+var pause_sound_button: Button
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -79,12 +82,15 @@ func _create_menu_screens() -> void:
 	_add_menu_title(title_screen, "MONOCHROME")
 	_add_menu_subtitle(title_screen, "A quiet place beyond the trees")
 	_add_menu_button(title_screen, "PLAY GAME", _start_game)
+	title_sound_button = _add_menu_button(title_screen, "SOUND: ON", _toggle_sound)
 	_add_menu_button(title_screen, "QUIT", _quit_game)
 
 	pause_screen = _make_menu_panel(layer, "PauseScreen")
 	_add_menu_title(pause_screen, "PAUSED")
 	_add_menu_button(pause_screen, "RESUME", _resume_game)
+	_add_menu_button(pause_screen, "SOUND: ON", _toggle_sound)
 	_add_menu_button(pause_screen, "MAIN MENU", _return_to_menu)
+	pause_sound_button = pause_screen.get_meta("menu_column").get_child(2) as Button
 	pause_screen.visible = false
 
 func _make_menu_panel(parent: Node, panel_name: String) -> Control:
@@ -123,7 +129,7 @@ func _add_menu_subtitle(panel: Control, text_value: String) -> void:
 	label.add_theme_color_override("font_color", Color(0.58, 0.58, 0.62))
 	column.add_child(label)
 
-func _add_menu_button(panel: Control, text_value: String, action: Callable) -> void:
+func _add_menu_button(panel: Control, text_value: String, action: Callable) -> Button:
 	var column := panel.get_meta("menu_column") as VBoxContainer
 	var button := Button.new()
 	button.text = text_value
@@ -137,6 +143,7 @@ func _add_menu_button(panel: Control, text_value: String, action: Callable) -> v
 	button.add_theme_stylebox_override("pressed", _menu_button_style(Color(0.12, 0.12, 0.13, 1.0), Color(0.8, 0.8, 0.82, 1.0)))
 	button.pressed.connect(action)
 	column.add_child(button)
+	return button
 
 func _menu_button_style(fill_color: Color, border_color: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -149,6 +156,15 @@ func _menu_button_style(fill_color: Color, border_color: Color) -> StyleBoxFlat:
 	style.content_margin_top = 10.0
 	style.content_margin_bottom = 10.0
 	return style
+
+func _toggle_sound() -> void:
+	sound_enabled = not sound_enabled
+	AudioServer.set_bus_mute(0, not sound_enabled)
+	var label := "SOUND: ON" if sound_enabled else "SOUND: OFF"
+	if is_instance_valid(title_sound_button):
+		title_sound_button.text = label
+	if is_instance_valid(pause_sound_button):
+		pause_sound_button.text = label
 
 func _start_game() -> void:
 	game_started = true
