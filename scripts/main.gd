@@ -1,6 +1,8 @@
 extends Node3D
 
-const TREE_COUNT := 54
+const TREE_COUNT := 76
+const GRASS_CLUMPS := 220
+const DEBRIS_COUNT := 95
 const HOUSE_POSITION := Vector3(0.0, 0.0, -25.0)
 const DOOR_POSITION := Vector3(0.0, 1.0, -21.5)
 const INTERACTION_DISTANCE := 2.6
@@ -15,6 +17,8 @@ func _ready() -> void:
 	_create_environment()
 	_create_ground_and_path()
 	_create_forest()
+	_create_ground_details()
+	_create_debris()
 	_create_house()
 	_create_player()
 	_create_ui()
@@ -108,34 +112,220 @@ func _create_ground_and_path() -> void:
 	add_child(path)
 
 func _create_forest() -> void:
-	var trunk_material := _mat(Color(0.20, 0.20, 0.21))
-	var leaf_material := _mat(Color(0.31, 0.31, 0.32))
+	var trunk_material := _mat(Color(0.105, 0.105, 0.112))
+	var trunk_light := _mat(Color(0.145, 0.145, 0.152))
+	var bark_shadow := _mat(Color(0.075, 0.075, 0.082))
+	var leaf_material := _mat(Color(0.205, 0.205, 0.215))
+	var leaf_light := _mat(Color(0.265, 0.265, 0.275))
+	var leaf_dark := _mat(Color(0.155, 0.155, 0.165))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 24019
 	for i in range(TREE_COUNT):
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var tree := Node3D.new()
 		tree.name = "Tree_%02d" % i
-		var x := side * rng.randf_range(3.0, 13.0)
-		var z := rng.randf_range(-38.0, 13.0)
+		var x := side * rng.randf_range(3.4, 15.0)
+		var z := rng.randf_range(-43.0, 16.0)
 		tree.position = Vector3(x, 0, z)
+		tree.rotation.y = rng.randf_range(-0.35, 0.35)
+		var height := rng.randf_range(3.0, 5.8)
+		var width := rng.randf_range(0.22, 0.38)
+
+		# Tapered trunk, dark bark scars and spreading roots break up the silhouette.
 		var trunk := MeshInstance3D.new()
 		var trunk_mesh := CylinderMesh.new()
-		trunk_mesh.top_radius = 0.16
-		trunk_mesh.bottom_radius = 0.28
-		trunk_mesh.height = rng.randf_range(2.5, 4.2)
+		trunk_mesh.top_radius = width * 0.45
+		trunk_mesh.bottom_radius = width
+		trunk_mesh.height = height
 		trunk.mesh = trunk_mesh
-		trunk.position.y = trunk_mesh.height / 2.0
+		trunk.position.y = height * 0.5
 		trunk.material_override = trunk_material
 		tree.add_child(trunk)
-		var crown := MeshInstance3D.new()
-		var crown_mesh := PrismMesh.new()
-		crown_mesh.size = Vector3(rng.randf_range(1.8, 3.0), rng.randf_range(2.2, 3.8), rng.randf_range(1.8, 3.0))
-		crown.mesh = crown_mesh
-		crown.position.y = trunk_mesh.height + crown_mesh.size.y * 0.28
-		crown.material_override = leaf_material
-		tree.add_child(crown)
+
+		for root_index in range(4):
+			var angle := float(root_index) * TAU / 4.0 + rng.randf_range(-0.25, 0.25)
+			var root := MeshInstance3D.new()
+			var root_mesh := BoxMesh.new()
+			root_mesh.size = Vector3(width * 0.72, 0.13, rng.randf_range(0.75, 1.25))
+			root.mesh = root_mesh
+			root.position = Vector3(sin(angle) * 0.32, 0.08, cos(angle) * 0.32)
+			root.rotation.y = angle
+			root.rotation.x = rng.randf_range(-0.08, 0.08)
+			root.material_override = bark_shadow
+			tree.add_child(root)
+
+		for scar_index in range(3):
+			var scar := MeshInstance3D.new()
+			var scar_mesh := BoxMesh.new()
+			scar_mesh.size = Vector3(0.035, rng.randf_range(0.35, 0.8), 0.025)
+			scar.mesh = scar_mesh
+			scar.position = Vector3(rng.randf_range(-width * 0.55, width * 0.55), rng.randf_range(0.55, height - 0.25), -width * 0.92)
+			scar.rotation.z = rng.randf_range(-0.12, 0.12)
+			scar.material_override = trunk_light if scar_index == 0 else bark_shadow
+			tree.add_child(scar)
+
+		# Crooked low-poly limbs peek through the broken, layered canopy.
+		for branch_index in range(3):
+			var branch := MeshInstance3D.new()
+			var branch_mesh := CylinderMesh.new()
+			branch_mesh.top_radius = 0.025
+			branch_mesh.bottom_radius = 0.085
+			branch_mesh.height = rng.randf_range(1.0, 1.65)
+			branch.mesh = branch_mesh
+			var branch_side := -1.0 if branch_index % 2 == 0 else 1.0
+			branch.position = Vector3(branch_side * 0.42, height * (0.52 + branch_index * 0.09), 0)
+			branch.rotation.z = branch_side * deg_to_rad(rng.randf_range(38.0, 58.0))
+			branch.rotation.x = rng.randf_range(-0.35, 0.35)
+			branch.material_override = trunk_material
+			tree.add_child(branch)
+
+		for crown_index in range(3):
+			var crown := MeshInstance3D.new()
+			var crown_mesh := PrismMesh.new()
+			var crown_width := rng.randf_range(1.7, 2.8)
+			crown_mesh.size = Vector3(crown_width, rng.randf_range(1.8, 2.8), crown_width * rng.randf_range(0.7, 1.1))
+			crown.mesh = crown_mesh
+			crown.position = Vector3(rng.randf_range(-0.55, 0.55), height + crown_index * 0.55, rng.randf_range(-0.45, 0.45))
+			crown.rotation.y = rng.randf_range(-0.7, 0.7)
+			crown.material_override = [leaf_dark, leaf_material, leaf_light][crown_index]
+			tree.add_child(crown)
 		add_child(tree)
+
+func _create_ground_details() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 72144
+	var grass_materials := [
+		_mat(Color(0.20, 0.20, 0.205)),
+		_mat(Color(0.245, 0.245, 0.25)),
+		_mat(Color(0.16, 0.16, 0.17))
+	]
+	var moss_material := _mat(Color(0.235, 0.235, 0.24))
+	var soil_material := _mat(Color(0.115, 0.115, 0.12))
+
+	# Irregular patches darken the earth around the path and tree roots.
+	for i in range(48):
+		var patch := MeshInstance3D.new()
+		var patch_mesh := CylinderMesh.new()
+		patch_mesh.top_radius = rng.randf_range(0.35, 1.1)
+		patch_mesh.bottom_radius = patch_mesh.top_radius * rng.randf_range(0.8, 1.15)
+		patch_mesh.height = 0.025
+		patch.mesh = patch_mesh
+		var px := rng.randf_range(-15.0, 15.0)
+		var pz := rng.randf_range(-43.0, 17.0)
+		patch.position = Vector3(px, 0.012, pz)
+		patch.rotation.y = rng.randf_range(0.0, TAU)
+		patch.material_override = soil_material if i % 3 != 0 else moss_material
+		add_child(patch)
+
+	# Small angular blades in uneven clumps, kept away from the centre of the path.
+	for i in range(GRASS_CLUMPS):
+		var x := rng.randf_range(-15.0, 15.0)
+		var z := rng.randf_range(-44.0, 18.0)
+		if absf(x) < 1.9:
+			x = signf(x) * rng.randf_range(2.0, 4.2)
+		var clump := Node3D.new()
+		clump.name = "Grass_%03d" % i
+		clump.position = Vector3(x, 0.025, z)
+		clump.rotation.y = rng.randf_range(0.0, TAU)
+		var blade_count := rng.randi_range(3, 6)
+		for blade_index in range(blade_count):
+			var blade := MeshInstance3D.new()
+			var blade_mesh := PrismMesh.new()
+			blade_mesh.size = Vector3(rng.randf_range(0.045, 0.09), rng.randf_range(0.18, 0.42), 0.045)
+			blade.mesh = blade_mesh
+			blade.position = Vector3(rng.randf_range(-0.17, 0.17), blade_mesh.size.y * 0.5, rng.randf_range(-0.15, 0.15))
+			blade.rotation.z = rng.randf_range(-0.35, 0.35)
+			blade.rotation.x = rng.randf_range(-0.3, 0.3)
+			blade.material_override = grass_materials[rng.randi_range(0, grass_materials.size() - 1)]
+			clump.add_child(blade)
+		add_child(clump)
+
+func _create_debris() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 88531
+	var stone_materials := [
+		_mat(Color(0.25, 0.25, 0.26)),
+		_mat(Color(0.31, 0.31, 0.32)),
+		_mat(Color(0.19, 0.19, 0.20))
+	]
+	var wood_materials := [
+		_mat(Color(0.105, 0.105, 0.11)),
+		_mat(Color(0.16, 0.16, 0.165)),
+		_mat(Color(0.125, 0.125, 0.13))
+	]
+	var twig_material := _mat(Color(0.12, 0.12, 0.125))
+	var leaf_material := _mat(Color(0.22, 0.22, 0.225))
+
+	for i in range(DEBRIS_COUNT):
+		var debris := Node3D.new()
+		debris.name = "ForestDebris_%03d" % i
+		var x := rng.randf_range(-14.0, 14.0)
+		var z := rng.randf_range(-44.0, 18.0)
+		if absf(x) < 1.75:
+			x = signf(x) * rng.randf_range(2.0, 3.6)
+		debris.position = Vector3(x, 0.0, z)
+		debris.rotation.y = rng.randf_range(0.0, TAU)
+		var kind := rng.randi_range(0, 4)
+
+		if kind <= 1:
+			# Weathered fallen limbs and broken logs, with a lighter snapped end.
+			var log := MeshInstance3D.new()
+			var log_mesh := CylinderMesh.new()
+			log_mesh.top_radius = rng.randf_range(0.055, 0.12)
+			log_mesh.bottom_radius = log_mesh.top_radius * rng.randf_range(0.8, 1.25)
+			log_mesh.height = rng.randf_range(0.8, 1.9)
+			log.mesh = log_mesh
+			log.position = Vector3(0, log_mesh.top_radius, 0)
+			log.rotation.z = deg_to_rad(rng.randf_range(72.0, 105.0))
+			log.rotation.x = rng.randf_range(-0.15, 0.15)
+			log.material_override = wood_materials[rng.randi_range(0, wood_materials.size() - 1)]
+			debris.add_child(log)
+			var broken_end := MeshInstance3D.new()
+			var end_mesh := CylinderMesh.new()
+			end_mesh.top_radius = 0.025
+			end_mesh.bottom_radius = 0.07
+			end_mesh.height = 0.06
+			broken_end.mesh = end_mesh
+			broken_end.position = Vector3(0, log_mesh.top_radius + log_mesh.height * 0.42, 0)
+			broken_end.rotation.z = log.rotation.z
+			broken_end.material_override = stone_materials[1]
+			debris.add_child(broken_end)
+			for twig_index in range(2):
+				var twig := MeshInstance3D.new()
+				var twig_mesh := CylinderMesh.new()
+				twig_mesh.top_radius = 0.012
+				twig_mesh.bottom_radius = 0.035
+				twig_mesh.height = rng.randf_range(0.35, 0.65)
+				twig.mesh = twig_mesh
+				twig.position = Vector3(rng.randf_range(-0.18, 0.18), 0.12, rng.randf_range(-0.15, 0.15))
+				twig.rotation.z = rng.randf_range(-1.0, 1.0)
+				twig.material_override = twig_material
+				debris.add_child(twig)
+		elif kind <= 3:
+			# Uneven low-poly stones in small scattered groups.
+			var stone_count := rng.randi_range(1, 3)
+			for stone_index in range(stone_count):
+				var stone := MeshInstance3D.new()
+				var stone_mesh := PrismMesh.new()
+				stone_mesh.size = Vector3(rng.randf_range(0.18, 0.55), rng.randf_range(0.12, 0.34), rng.randf_range(0.18, 0.48))
+				stone.mesh = stone_mesh
+				stone.position = Vector3(rng.randf_range(-0.35, 0.35), stone_mesh.size.y * 0.35, rng.randf_range(-0.3, 0.3))
+				stone.rotation = Vector3(rng.randf_range(-0.15, 0.15), rng.randf_range(0.0, TAU), rng.randf_range(-0.18, 0.18))
+				stone.material_override = stone_materials[rng.randi_range(0, stone_materials.size() - 1)]
+				debris.add_child(stone)
+		else:
+			# Fallen leaves and snapped twig fragments form small litter clusters.
+			for leaf_index in range(rng.randi_range(4, 8)):
+				var leaf := MeshInstance3D.new()
+				var leaf_mesh := PrismMesh.new()
+				leaf_mesh.size = Vector3(rng.randf_range(0.08, 0.17), 0.025, rng.randf_range(0.12, 0.23))
+				leaf.mesh = leaf_mesh
+				leaf.position = Vector3(rng.randf_range(-0.35, 0.35), 0.018, rng.randf_range(-0.35, 0.35))
+				leaf.rotation.y = rng.randf_range(0.0, TAU)
+				leaf.rotation.x = rng.randf_range(-0.08, 0.08)
+				leaf.material_override = leaf_material
+				debris.add_child(leaf)
+		add_child(debris)
 
 func _create_house() -> void:
 	var house := Node3D.new()
