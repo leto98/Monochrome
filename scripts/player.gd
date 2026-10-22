@@ -18,6 +18,7 @@ const MIN_CAMERA_PITCH := deg_to_rad(-55.0)
 const MAX_CAMERA_PITCH := deg_to_rad(25.0)
 const WALK_ANIMATION_SPEED := 8.5
 const RUN_ANIMATION_SPEED := 12.0
+const AUDIO_RATE := 22050
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var camera: Camera3D = $CameraPivot/Camera3D
@@ -29,6 +30,7 @@ const RUN_ANIMATION_SPEED := 12.0
 @onready var right_leg: Node3D = get_node_or_null("Leg_R")
 @onready var left_foot: Node3D = get_node_or_null("Foot_L")
 @onready var right_foot: Node3D = get_node_or_null("Foot_R")
+@onready var movement_audio: AudioStreamPlayer3D = _create_audio_player()
 
 var jump_requested := false
 var animation_time := 0.0
@@ -38,9 +40,12 @@ var free_look_yaw := 0.0
 var free_look_pitch := 0.0
 var camera_base_pitch := 0.0
 var camera_mode := 0
+var footstep_clock := 0.0
+var was_on_floor := true
 
 func _ready() -> void:
 	camera_base_pitch = camera_pivot.rotation.x
+	was_on_floor = is_on_floor()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _input(event: InputEvent) -> void:
@@ -84,6 +89,7 @@ func _physics_process(delta: float) -> void:
 	# Jump is triggered once per key press, not repeatedly while Space is held.
 	if jump_requested and is_on_floor():
 		velocity.y = JUMP_VELOCITY
+		_play_movement_sound("jump", -7.0)
 	jump_requested = false
 
 	var input_dir := Vector2.ZERO
@@ -112,6 +118,69 @@ func _physics_process(delta: float) -> void:
 	velocity.z = horizontal_velocity.z
 	move_and_slide()
 	_update_limb_animation(delta, input_dir.length())
+	_update_footsteps(delta, input_dir.length())
+	if not was_on_floor and is_on_floor():
+		_play_movement_sound("land", -8.0)
+	was_on_floor = is_on_floor()
+
+
+func _create_audio_player() -> AudioStreamPlayer3D:
+	var audio := AudioStreamPlayer3D.new()
+	audio.name = "MovementAudio"
+	audio.volume_db = -8.0
+	audio.max_distance = 18.0
+	audio.unit_size = 5.0
+	add_child(audio)
+	return audio
+
+func _update_footsteps(delta: float, input_strength: float) -> void:
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if is_on_floor() and input_strength > 0.0 and horizontal_speed > 0.65:
+		footstep_clock -= delta
+		if footstep_clock <= 0.0:
+			var running := Input.is_key_pressed(KEY_SHIFT)
+			_play_movement_sound("run_step" if running else "step", -11.0 if running else -13.0)
+			footstep_clock = 0.34 if running else 0.48
+	else:
+		footstep_clock = minf(footstep_clock, 0.12)
+
+func _play_movement_sound(kind: String, volume: float) -> void:
+	movement_audio.stream = _make_sound(kind)
+	movement_audio.volume_db = volume
+	movement_audio.pitch_scale = randf_range(0.92, 1.08)
+	movement_audio.play()
+
+func _make_sound(kind: String) -> AudioStreamWAV:
+	# Short generated Foley: a soft low thump plus filtered noise, with no external assets required.
+	var duration := 0.16
+	if kind == "jump":
+		duration = 0.20
+	elif kind == "land":
+		duration = 0.23
+	var count := int(AUDIO_RATE * duration)
+	var bytes := PackedByteArray()
+	bytes.resize(count * 2)
+	for i in range(count):
+		var t := float(i) / AUDIO_RATE
+		var envelope := exp(-t * (24.0 if kind == "step" or kind == "run_step" else 15.0))
+		var noise := randf_range(-1.0, 1.0)
+		var low := sin(TAU * (72.0 if kind == "land" else 95.0) * t) * exp(-t * 18.0)
+		var grit := noise * exp(-t * (34.0 if kind == "step" or kind == "run_step" else 22.0))
+		var sample := 0.0
+		if kind == "jump":
+			sample = (sin(TAU * 125.0 * t) * 0.35 + grit * 0.35) * exp(-t * 19.0)
+		elif kind == "land":
+			sample = low * 0.62 + grit * 0.24
+		else:
+			sample = low * 0.48 + grit * 0.32
+		sample *= envelope
+		bytes.encode_s16(i * 2, int(clampf(sample, -1.0, 1.0) * 12000.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = AUDIO_RATE
+	stream.stereo = false
+	stream.data = bytes
+	return stream
 
 func _cycle_camera_mode() -> void:
 	camera_mode = (camera_mode + 1) % CAMERA_DISTANCES.size()
