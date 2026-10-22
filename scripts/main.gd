@@ -1034,56 +1034,91 @@ func _create_player() -> void:
 		tuft.material_override = silhouette
 		player.add_child(tuft)
 
-	# Arms rest close to the body so they read as a single clean silhouette.
-	var arm_mesh := CapsuleMesh.new()
-	arm_mesh.radius = 0.085
-	arm_mesh.height = 0.54
+	# Articulated shoulders, biceps, forearms and palms.
 	for side in [-1.0, 1.0]:
-		var arm := Node3D.new()
-		arm.name = "UpperArm_%s" % ("L" if side < 0 else "R")
-		arm.position = Vector3(side * 0.235, 0.02, 0.0)
-		player.add_child(arm)
-		var arm_visual := MeshInstance3D.new()
-		arm_visual.name = "ArmMesh"
-		arm_visual.mesh = arm_mesh
-		arm_visual.position = Vector3(side * 0.015, -0.25, 0.0)
-		arm_visual.rotation.z = side * deg_to_rad(-7.0)
-		arm_visual.material_override = clothing
-		arm.add_child(arm_visual)
+		var suffix := "L" if side < 0 else "R"
+		var shoulder := Node3D.new()
+		shoulder.name = "Shoulder_" + suffix
+		shoulder.position = Vector3(side * 0.235, 0.12, 0.0)
+		player.add_child(shoulder)
+		var joint_mesh := SphereMesh.new()
+		joint_mesh.radius = 0.105
+		joint_mesh.height = 0.20
+		var joint := MeshInstance3D.new()
+		joint.mesh = joint_mesh
+		joint.material_override = clothing
+		shoulder.add_child(joint)
+		var upper_mesh := CapsuleMesh.new()
+		upper_mesh.radius = 0.078
+		upper_mesh.height = 0.34
+		var upper := MeshInstance3D.new()
+		upper.mesh = upper_mesh
+		upper.position.y = -0.19
+		upper.material_override = clothing
+		shoulder.add_child(upper)
+		var elbow := Node3D.new()
+		elbow.name = "Forearm_" + suffix
+		elbow.position.y = -0.36
+		shoulder.add_child(elbow)
+		var lower_mesh := CapsuleMesh.new()
+		lower_mesh.radius = 0.061
+		lower_mesh.height = 0.32
+		var lower := MeshInstance3D.new()
+		lower.mesh = lower_mesh
+		lower.position.y = -0.16
+		lower.material_override = clothing
+		elbow.add_child(lower)
+		var palm := Node3D.new()
+		palm.name = "Palm_" + suffix
+		palm.position = Vector3(0.0, -0.33, -0.005)
+		elbow.add_child(palm)
+		var palm_mesh := SphereMesh.new()
+		palm_mesh.radius = 0.065
+		palm_mesh.height = 0.13
+		var palm_visual := MeshInstance3D.new()
+		palm_visual.mesh = palm_mesh
+		palm_visual.scale = Vector3(0.8, 1.0, 0.72)
+		palm_visual.material_override = silhouette
+		palm.add_child(palm_visual)
 
-		var hand := MeshInstance3D.new()
-		hand.name = "Hand_%s" % ("L" if side < 0 else "R")
-		var hand_mesh := SphereMesh.new()
-		hand_mesh.radius = 0.065
-		hand_mesh.height = 0.13
-		hand.mesh = hand_mesh
-		hand.position = Vector3(side * 0.025, -0.53, -0.005)
-		hand.scale = Vector3(0.9, 1.0, 0.8)
-		hand.material_override = silhouette
-		arm.add_child(hand)
-
-	# Short, slim trouser legs and narrow feet, kept separate for the walk cycle.
-	var leg_mesh := CapsuleMesh.new()
-	leg_mesh.radius = 0.085
-	leg_mesh.height = 0.52
+	# Separate thigh, calf and foot joints create a readable leg cycle.
 	for side in [-1.0, 1.0]:
-		var leg := MeshInstance3D.new()
-		leg.name = "Leg_%s" % ("L" if side < 0 else "R")
-		leg.mesh = leg_mesh
-		leg.position = Vector3(side * 0.105, -0.59, 0.0)
-		leg.material_override = clothing
-		player.add_child(leg)
-
-		var foot := MeshInstance3D.new()
-		foot.name = "Foot_%s" % ("L" if side < 0 else "R")
-		var foot_mesh := CapsuleMesh.new()
-		foot_mesh.radius = 0.055
-		foot_mesh.height = 0.25
-		foot.mesh = foot_mesh
-		foot.position = Vector3(side * 0.105, -0.84, -0.055)
-		foot.rotation.x = deg_to_rad(90.0)
-		foot.material_override = silhouette
-		player.add_child(foot)
+		var suffix := "L" if side < 0 else "R"
+		var hip := Node3D.new()
+		hip.name = "Thigh_" + suffix
+		hip.position = Vector3(side * 0.105, -0.43, 0.0)
+		player.add_child(hip)
+		var thigh_mesh := CapsuleMesh.new()
+		thigh_mesh.radius = 0.083
+		thigh_mesh.height = 0.38
+		var thigh := MeshInstance3D.new()
+		thigh.mesh = thigh_mesh
+		thigh.position.y = -0.19
+		thigh.material_override = clothing
+		hip.add_child(thigh)
+		var knee := Node3D.new()
+		knee.name = "Calf_" + suffix
+		knee.position.y = -0.37
+		hip.add_child(knee)
+		var calf_mesh := CapsuleMesh.new()
+		calf_mesh.radius = 0.066
+		calf_mesh.height = 0.34
+		var calf := MeshInstance3D.new()
+		calf.mesh = calf_mesh
+		calf.position.y = -0.17
+		calf.material_override = clothing
+		knee.add_child(calf)
+		var ankle := Node3D.new()
+		ankle.name = "Foot_" + suffix
+		ankle.position = Vector3(0.0, -0.34, -0.035)
+		knee.add_child(ankle)
+		var shoe_mesh := BoxMesh.new()
+		shoe_mesh.size = Vector3(0.13, 0.085, 0.23)
+		var shoe := MeshInstance3D.new()
+		shoe.mesh = shoe_mesh
+		shoe.position = Vector3(0.0, -0.025, -0.055)
+		shoe.material_override = silhouette
+		ankle.add_child(shoe)
 
 	# Bright, softly glowing eyes visible through the dark face.
 	for side in [-1.0, 1.0]:
