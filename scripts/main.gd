@@ -393,7 +393,8 @@ func _create_forest() -> void:
 		if tree_style == 0:
 			for crown_index in range(4):
 				var crown := MeshInstance3D.new()
-				var crown_mesh := ConeMesh.new()
+				var crown_mesh := CylinderMesh.new()
+				crown_mesh.top_radius = 0.03
 				crown_mesh.bottom_radius = rng.randf_range(0.75, 1.35)
 				crown_mesh.top_radius = 0.03
 				crown_mesh.height = rng.randf_range(1.35, 2.1)
