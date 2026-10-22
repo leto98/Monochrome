@@ -13,8 +13,13 @@ var prompt: Label
 var inside_message: Label
 var door_open := false
 var interaction_audio: AudioStreamPlayer3D
+var title_screen: Control
+var pause_screen: Control
+var game_started := false
+var is_paused := false
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_create_environment()
 	_create_ground_and_path()
 	_create_forest()
@@ -23,6 +28,7 @@ func _ready() -> void:
 	_create_house()
 	_create_player()
 	_create_ui()
+	_create_menu_screens()
 	interaction_audio = AudioStreamPlayer3D.new()
 	interaction_audio.name = "WorldInteractionAudio"
 	interaction_audio.volume_db = -10.0
@@ -31,14 +37,26 @@ func _ready() -> void:
 	add_child(interaction_audio)
 
 func _process(_delta: float) -> void:
+	if not game_started or is_paused:
+		return
 	if player == null:
 		return
 	var near_door := player.global_position.distance_to(DOOR_POSITION) <= INTERACTION_DISTANCE
 	prompt.visible = near_door and not door_open
-	if inside_message.visible and Input.is_key_pressed(KEY_ESCAPE):
-		inside_message.visible = false
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if not game_started:
+			return
+		if is_paused:
+			_resume_game()
+		else:
+			_pause_game()
+		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not game_started or is_paused:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_E and player.global_position.distance_to(DOOR_POSITION) <= INTERACTION_DISTANCE:
 			door_open = true
@@ -47,6 +65,128 @@ func _unhandled_input(event: InputEvent) -> void:
 			prompt.visible = false
 			inside_message.visible = true
 
+
+
+func _create_menu_screens() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "MenuLayer"
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(layer)
+
+	title_screen = _make_menu_panel(layer, "TitleScreen")
+	_add_menu_title(title_screen, "MONOCHROME")
+	_add_menu_subtitle(title_screen, "A quiet place beyond the trees")
+	_add_menu_button(title_screen, "PLAY GAME", _start_game)
+	_add_menu_button(title_screen, "QUIT", _quit_game)
+
+	pause_screen = _make_menu_panel(layer, "PauseScreen")
+	_add_menu_title(pause_screen, "PAUSED")
+	_add_menu_button(pause_screen, "RESUME", _resume_game)
+	_add_menu_button(pause_screen, "MAIN MENU", _return_to_menu)
+	pause_screen.visible = false
+
+func _make_menu_panel(parent: Node, panel_name: String) -> Control:
+	var panel := ColorRect.new()
+	panel.name = panel_name
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	panel.color = Color(0.015, 0.015, 0.02, 0.94)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	parent.add_child(panel)
+
+	var column := VBoxContainer.new()
+	column.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	column.position = Vector2(-190.0, -145.0)
+	column.size = Vector2(380.0, 290.0)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 18)
+	panel.add_child(column)
+	panel.set_meta("menu_column", column)
+	return panel
+
+func _add_menu_title(panel: Control, text_value: String) -> void:
+	var column := panel.get_meta("menu_column") as VBoxContainer
+	var label := Label.new()
+	label.text = text_value
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 38)
+	label.add_theme_color_override("font_color", Color(0.94, 0.94, 0.96))
+	column.add_child(label)
+
+func _add_menu_subtitle(panel: Control, text_value: String) -> void:
+	var column := panel.get_meta("menu_column") as VBoxContainer
+	var label := Label.new()
+	label.text = text_value
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", Color(0.58, 0.58, 0.62))
+	column.add_child(label)
+
+func _add_menu_button(panel: Control, text_value: String, action: Callable) -> void:
+	var column := panel.get_meta("menu_column") as VBoxContainer
+	var button := Button.new()
+	button.text = text_value
+	button.custom_minimum_size = Vector2(260.0, 48.0)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.add_theme_font_size_override("font_size", 17)
+	button.add_theme_color_override("font_color", Color(0.9, 0.9, 0.92))
+	button.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0))
+	button.add_theme_stylebox_override("normal", _menu_button_style(Color(0.08, 0.08, 0.09, 1.0), Color(0.25, 0.25, 0.27, 1.0)))
+	button.add_theme_stylebox_override("hover", _menu_button_style(Color(0.18, 0.18, 0.20, 1.0), Color(0.65, 0.65, 0.68, 1.0)))
+	button.add_theme_stylebox_override("pressed", _menu_button_style(Color(0.12, 0.12, 0.13, 1.0), Color(0.8, 0.8, 0.82, 1.0)))
+	button.pressed.connect(action)
+	column.add_child(button)
+
+func _menu_button_style(fill_color: Color, border_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill_color
+	style.border_color = border_color
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(2)
+	style.content_margin_left = 18.0
+	style.content_margin_right = 18.0
+	style.content_margin_top = 10.0
+	style.content_margin_bottom = 10.0
+	return style
+
+func _start_game() -> void:
+	game_started = true
+	is_paused = false
+	get_tree().paused = false
+	title_screen.visible = false
+	pause_screen.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _pause_game() -> void:
+	if not game_started:
+		return
+	is_paused = true
+	get_tree().paused = true
+	pause_screen.visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _resume_game() -> void:
+	is_paused = false
+	get_tree().paused = false
+	pause_screen.visible = false
+	title_screen.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _return_to_menu() -> void:
+	get_tree().paused = false
+	is_paused = false
+	game_started = false
+	pause_screen.visible = false
+	title_screen.visible = true
+	player.velocity = Vector3.ZERO
+	player.position = Vector3(0.0, 0.95, 5.0)
+	door_open = false
+	door.rotation_degrees.y = 0.0
+	prompt.visible = false
+	inside_message.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _quit_game() -> void:
+	get_tree().quit()
 
 func _play_door_sound() -> void:
 	# A quiet wooden latch followed by a short, rough hinge creak.
