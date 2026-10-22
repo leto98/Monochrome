@@ -264,6 +264,32 @@ func _mesh_box(parent: Node3D, name: String, size: Vector3, pos: Vector3, materi
 	parent.add_child(node)
 	return node
 
+func _add_box_collision(parent: Node3D, name: String, size: Vector3, pos: Vector3, rot := Vector3.ZERO) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = name
+	body.position = pos
+	body.rotation = rot
+	var shape_node := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	shape_node.shape = shape
+	body.add_child(shape_node)
+	parent.add_child(body)
+	return body
+
+func _add_cylinder_collision(parent: Node3D, name: String, radius: float, height: float, pos: Vector3) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = name
+	body.position = pos
+	var shape_node := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = radius
+	shape.height = height
+	shape_node.shape = shape
+	body.add_child(shape_node)
+	parent.add_child(body)
+	return body
+
 func _create_environment() -> void:
 	var world := WorldEnvironment.new()
 	var environment := Environment.new()
@@ -364,6 +390,7 @@ func _create_forest() -> void:
 		trunk.position.y = height * 0.5
 		trunk.material_override = trunk_material
 		tree.add_child(trunk)
+		_add_cylinder_collision(tree, "TrunkCollision", width * 1.25, height, Vector3(0.0, height * 0.5, 0.0))
 
 		for root_index in range(4):
 			var angle := float(root_index) * TAU / 4.0 + rng.randf_range(-0.25, 0.25)
@@ -658,7 +685,14 @@ func _create_house() -> void:
 	window_glow.emission_energy_multiplier = 2.8
 
 	_mesh_box(house, "StoneFoundation", Vector3(6.4, 0.38, 4.9), Vector3(0, 0.19, 0), stone_material)
+	_add_box_collision(house, "FoundationCollision", Vector3(6.4, 0.38, 4.9), Vector3(0, 0.19, 0))
 	_mesh_box(house, "CabinBody", Vector3(6.0, 2.65, 4.5), Vector3(0, 1.55, 0), log_dark)
+	# Four wall colliders leave the doorway open while preventing passage through the cabin.
+	_add_box_collision(house, "BackWallCollision", Vector3(6.0, 2.65, 0.20), Vector3(0, 1.55, -2.22))
+	_add_box_collision(house, "LeftWallCollision", Vector3(0.20, 2.65, 4.3), Vector3(-2.92, 1.55, 0))
+	_add_box_collision(house, "RightWallCollision", Vector3(0.20, 2.65, 4.3), Vector3(2.92, 1.55, 0))
+	_add_box_collision(house, "FrontLeftWallCollision", Vector3(2.0, 2.65, 0.20), Vector3(-2.0, 1.55, 2.22))
+	_add_box_collision(house, "FrontRightWallCollision", Vector3(2.0, 2.65, 0.20), Vector3(2.0, 1.55, 2.22))
 
 	# Visible horizontal timber courses on each wall.
 	for row in range(10):
@@ -701,12 +735,14 @@ func _create_house() -> void:
 	door.position = Vector3(-0.97, 1.02, 2.39)
 	house.add_child(door)
 	_mesh_box(door, "Door", Vector3(0.98, 2.02, 0.12), Vector3(0.49, 0.0, 0.0), log_dark)
+	_add_box_collision(door, "DoorCollision", Vector3(0.98, 2.02, 0.16), Vector3(0.49, 0.0, 0.0))
 	door.rotation_degrees.y = 0.0
 	for plank in range(4):
 		_mesh_box(door, "DoorPlank_%d" % plank, Vector3(0.20, 1.82, 0.025), Vector3(0.20 + float(plank) * 0.19, 0.01, -0.075), log_mid)
 	_mesh_box(door, "DoorCrossBrace", Vector3(0.82, 0.10, 0.035), Vector3(0.49, -0.47, -0.10), log_light)
 	_mesh_box(door, "DoorKnob", Vector3(0.07, 0.07, 0.07), Vector3(0.79, -0.02, -0.12), _mat(Color(0.68, 0.48, 0.20)))
 	_mesh_box(house, "FrontStep", Vector3(2.0, 0.18, 0.72), Vector3(0, 0.12, 2.85), stone_material)
+	_add_box_collision(house, "FrontStepCollision", Vector3(2.0, 0.18, 0.72), Vector3(0, 0.12, 2.85))
 
 	# Warm windows: two at ground level and one in the attic gable.
 	for window_index in range(3):
@@ -813,6 +849,17 @@ func _create_expanded_landscape() -> void:
 		rock.rotation = Vector3(rng.randf_range(-0.18, 0.18), rng.randf_range(0.0, TAU), rng.randf_range(-0.18, 0.18))
 		rock.material_override = rock_materials[rng.randi_range(0, rock_materials.size() - 1)]
 		add_child(rock)
+		var rock_body := StaticBody3D.new()
+		rock_body.name = "BoulderCollision_%03d" % i
+		rock_body.position = rock.position
+		rock_body.rotation = rock.rotation
+		var rock_shape_node := CollisionShape3D.new()
+		var rock_shape := SphereShape3D.new()
+		rock_shape.radius = maxf(rock.scale.x, rock.scale.z) * 0.82
+		rock_shape.height = maxf(rock.scale.y * 1.5, rock_shape.radius * 1.2)
+		rock_shape_node.shape = rock_shape
+		rock_body.add_child(rock_shape_node)
+		add_child(rock_body)
 
 	# Low irregular ridges on both sides of the valley.
 	for i in range(34):
@@ -829,6 +876,7 @@ func _create_expanded_landscape() -> void:
 		ridge.rotation.z = rng.randf_range(-0.12, 0.12)
 		ridge.material_override = soil_materials[rng.randi_range(0, soil_materials.size() - 1)]
 		add_child(ridge)
+		_add_box_collision(self, "RidgeCollision_%02d" % i, mesh.size, ridge.position, ridge.rotation)
 
 	# A long winding river occupies a shallow valley to the east of the cabin.
 	# Overlapping segments follow a gentle curve; raised banks frame the water.
@@ -856,6 +904,7 @@ func _create_expanded_landscape() -> void:
 			bank.rotation.y = segment.rotation.y
 			bank.material_override = soil_materials[1] if i % 3 == 0 else soil_materials[2]
 			add_child(bank)
+			_add_box_collision(self, "RiverBankCollision_%02d_%d" % [i, int(bank_side)], bank_mesh.size, bank.position, Vector3(0.0, bank.rotation.y, 0.0))
 
 	# A lower, narrow stream sits beneath a separate rocky ravine at the far end.
 	for i in range(28):
@@ -879,6 +928,7 @@ func _create_expanded_landscape() -> void:
 			cliff.rotation.z = side * rng.randf_range(-0.16, 0.16)
 			cliff.material_override = rock_materials[rng.randi_range(0, rock_materials.size() - 1)]
 			add_child(cliff)
+			_add_box_collision(self, "RavineCliffCollision_%02d_%d" % [i, int(side)], cliff_mesh.size, cliff.position, cliff.rotation)
 
 	# Small low-poly fish silhouettes swim along the main river.
 	var fish_material := _mat(Color(0.62, 0.65, 0.61))
@@ -1054,6 +1104,7 @@ func _create_player() -> void:
 	capsule.radius = 0.28
 	capsule.height = 1.8
 	collider.shape = capsule
+	collider.position.y = -0.02
 	player.add_child(collider)
 
 	# The camera sits on a pivot near the character's centre, allowing true orbiting.
