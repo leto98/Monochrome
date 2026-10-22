@@ -81,17 +81,15 @@ func _physics_process(delta: float) -> void:
 	jump_requested = false
 
 	var input_dir := Vector2.ZERO
-	if free_look_active:
-		input_dir = Vector2.ZERO
-	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
-		input_dir.x -= 1.0
-	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
-		input_dir.x += 1.0
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
-		input_dir.y -= 1.0
-	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
-		input_dir.y += 1.0
-
+	if not free_look_active:
+		if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+			input_dir.x -= 1.0
+		if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+			input_dir.x += 1.0
+		if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+			input_dir.y -= 1.0
+		if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+			input_dir.y += 1.0
 	input_dir = input_dir.normalized()
 	var move_dir := (global_transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	var target_speed := RUN_SPEED if Input.is_key_pressed(KEY_SHIFT) else WALK_SPEED
