@@ -254,24 +254,24 @@ func _create_environment() -> void:
 	environment.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.22, 0.23, 0.25)
-	sky_material.sky_horizon_color = Color(0.48, 0.48, 0.49)
-	sky_material.ground_bottom_color = Color(0.10, 0.10, 0.11)
-	sky_material.ground_horizon_color = Color(0.38, 0.38, 0.39)
+	sky_material.sky_top_color = Color(0.055, 0.075, 0.12)
+	sky_material.sky_horizon_color = Color(0.28, 0.34, 0.37)
+	sky_material.ground_bottom_color = Color(0.10, 0.13, 0.10)
+	sky_material.ground_horizon_color = Color(0.27, 0.31, 0.22)
 	sky.sky_material = sky_material
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color(0.58, 0.58, 0.60)
+	environment.ambient_light_color = Color(0.62, 0.66, 0.54)
 	environment.ambient_light_energy = 0.55
 	environment.fog_enabled = true
-	environment.fog_light_color = Color(0.48, 0.48, 0.49)
+	environment.fog_light_color = Color(0.40, 0.46, 0.40)
 	environment.fog_density = 0.018
 	world.environment = environment
 	add_child(world)
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-42, -25, 0)
-	sun.light_color = Color(0.78, 0.78, 0.80)
+	sun.light_color = Color(1.0, 0.82, 0.62)
 	sun.light_energy = 0.7
 	sun.shadow_enabled = true
 	add_child(sun)
@@ -284,7 +284,7 @@ func _create_ground_and_path() -> void:
 	var ground_visual := MeshInstance3D.new()
 	ground_visual.mesh = ground_mesh
 	ground_visual.position.y = -0.5
-	ground_visual.material_override = _mat(Color(0.16, 0.16, 0.17))
+	ground_visual.material_override = _mat(Color(0.20, 0.25, 0.15))
 	ground.add_child(ground_visual)
 	var ground_collision := CollisionShape3D.new()
 	var ground_shape := BoxShape3D.new()
@@ -294,22 +294,35 @@ func _create_ground_and_path() -> void:
 	ground.add_child(ground_collision)
 	add_child(ground)
 
-	var path := MeshInstance3D.new()
-	path.name = "ForestPath"
-	var path_mesh := BoxMesh.new()
-	path_mesh.size = Vector3(3.2, 0.04, 42.0)
-	path.mesh = path_mesh
-	path.position = Vector3(0, 0.025, -13.0)
-	path.material_override = _mat(Color(0.29, 0.29, 0.30))
-	add_child(path)
+	# A winding dirt trail built from overlapping rounded sections instead of one straight slab.
+	var path_materials := [
+		_mat(Color(0.43, 0.34, 0.23)),
+		_mat(Color(0.48, 0.39, 0.27)),
+		_mat(Color(0.37, 0.30, 0.21))
+	]
+	for i in range(34):
+		var t := float(i) / 33.0
+		var z := lerpf(8.0, -34.0, t)
+		var x := sin(t * TAU * 1.15) * 1.45 + sin(t * TAU * 2.4) * 0.35
+		var section := MeshInstance3D.new()
+		section.name = "WindingPath_%02d" % i
+		var section_mesh := CylinderMesh.new()
+		section_mesh.top_radius = 1.35 + 0.18 * sin(t * TAU * 3.0)
+		section_mesh.bottom_radius = section_mesh.top_radius
+		section_mesh.height = 0.035
+		section.mesh = section_mesh
+		section.position = Vector3(x, 0.018, z)
+		section.rotation.y = sin(t * TAU * 1.15) * 0.22
+		section.material_override = path_materials[i % path_materials.size()]
+		add_child(section)
 
 func _create_forest() -> void:
-	var trunk_material := _mat(Color(0.105, 0.105, 0.112))
-	var trunk_light := _mat(Color(0.145, 0.145, 0.152))
-	var bark_shadow := _mat(Color(0.075, 0.075, 0.082))
-	var leaf_material := _mat(Color(0.205, 0.205, 0.215))
-	var leaf_light := _mat(Color(0.265, 0.265, 0.275))
-	var leaf_dark := _mat(Color(0.155, 0.155, 0.165))
+	var trunk_material := _mat(Color(0.22, 0.13, 0.085))
+	var trunk_light := _mat(Color(0.34, 0.22, 0.13))
+	var bark_shadow := _mat(Color(0.14, 0.085, 0.055))
+	var leaf_material := _mat(Color(0.20, 0.34, 0.20))
+	var leaf_light := _mat(Color(0.38, 0.47, 0.25))
+	var leaf_dark := _mat(Color(0.12, 0.23, 0.16))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 24019
 	for i in range(TREE_COUNT):
@@ -373,12 +386,16 @@ func _create_forest() -> void:
 
 		for crown_index in range(3):
 			var crown := MeshInstance3D.new()
-			var crown_mesh := PrismMesh.new()
-			var crown_width := rng.randf_range(1.7, 2.8)
-			crown_mesh.size = Vector3(crown_width, rng.randf_range(1.8, 2.8), crown_width * rng.randf_range(0.7, 1.1))
+			var crown_mesh := ConeMesh.new()
+			var crown_width := rng.randf_range(1.25, 2.1)
+			crown_mesh.bottom_radius = crown_width * 0.5
+			crown_mesh.top_radius = 0.04
+			crown_mesh.height = rng.randf_range(1.7, 2.5)
+			crown_mesh.radial_segments = rng.randi_range(5, 7)
 			crown.mesh = crown_mesh
-			crown.position = Vector3(rng.randf_range(-0.55, 0.55), height + crown_index * 0.55, rng.randf_range(-0.45, 0.45))
+			crown.position = Vector3(rng.randf_range(-0.42, 0.42), height * 0.52 + crown_index * 0.62, rng.randf_range(-0.35, 0.35))
 			crown.rotation.y = rng.randf_range(-0.7, 0.7)
+			crown.rotation.x = rng.randf_range(-0.08, 0.08)
 			crown.material_override = [leaf_dark, leaf_material, leaf_light][crown_index]
 			tree.add_child(crown)
 		add_child(tree)
@@ -387,12 +404,12 @@ func _create_ground_details() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 72144
 	var grass_materials := [
-		_mat(Color(0.20, 0.20, 0.205)),
-		_mat(Color(0.245, 0.245, 0.25)),
-		_mat(Color(0.16, 0.16, 0.17))
+		_mat(Color(0.25, 0.34, 0.18)),
+		_mat(Color(0.36, 0.43, 0.22)),
+		_mat(Color(0.17, 0.25, 0.14))
 	]
-	var moss_material := _mat(Color(0.235, 0.235, 0.24))
-	var soil_material := _mat(Color(0.115, 0.115, 0.12))
+	var moss_material := _mat(Color(0.32, 0.40, 0.18))
+	var soil_material := _mat(Color(0.20, 0.15, 0.095))
 
 	# Irregular patches darken the earth around the path and tree roots.
 	for i in range(48):
@@ -436,17 +453,17 @@ func _create_debris() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 88531
 	var stone_materials := [
-		_mat(Color(0.25, 0.25, 0.26)),
-		_mat(Color(0.31, 0.31, 0.32)),
-		_mat(Color(0.19, 0.19, 0.20))
+		_mat(Color(0.43, 0.43, 0.40)),
+		_mat(Color(0.58, 0.57, 0.51)),
+		_mat(Color(0.32, 0.34, 0.31))
 	]
 	var wood_materials := [
-		_mat(Color(0.105, 0.105, 0.11)),
-		_mat(Color(0.16, 0.16, 0.165)),
-		_mat(Color(0.125, 0.125, 0.13))
+		_mat(Color(0.20, 0.12, 0.075)),
+		_mat(Color(0.29, 0.18, 0.11)),
+		_mat(Color(0.24, 0.14, 0.09))
 	]
-	var twig_material := _mat(Color(0.12, 0.12, 0.125))
-	var leaf_material := _mat(Color(0.22, 0.22, 0.225))
+	var twig_material := _mat(Color(0.18, 0.11, 0.07))
+	var leaf_material := _mat(Color(0.48, 0.36, 0.18))
 
 	for i in range(DEBRIS_COUNT):
 		var debris := Node3D.new()
@@ -524,9 +541,9 @@ func _create_house() -> void:
 	house.name = "DistantHouse"
 	house.position = HOUSE_POSITION
 	add_child(house)
-	var wall_material := _mat(Color(0.19, 0.19, 0.20))
-	var roof_material := _mat(Color(0.11, 0.11, 0.12))
-	var door_material := _mat(Color(0.08, 0.08, 0.09))
+	var wall_material := _mat(Color(0.40, 0.22, 0.14))
+	var roof_material := _mat(Color(0.17, 0.085, 0.065))
+	var door_material := _mat(Color(0.12, 0.065, 0.045))
 	_mesh_box(house, "HouseBody", Vector3(7.0, 3.2, 5.0), Vector3(0, 1.6, 0), wall_material)
 	_mesh_box(house, "Roof", Vector3(7.8, 0.35, 5.8), Vector3(0, 3.35, 0), roof_material)
 	_mesh_box(house, "FrontStep", Vector3(2.4, 0.18, 0.8), Vector3(0, 0.09, 2.8), roof_material)
