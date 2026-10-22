@@ -880,7 +880,7 @@ func _create_player() -> void:
 	# The camera sits on a pivot near the character's centre, allowing true orbiting.
 	var camera_pivot := Node3D.new()
 	camera_pivot.name = "CameraPivot"
-	camera_pivot.position = Vector3(0.0, 0.65, 0.0)
+	camera_pivot.position = Vector3(0.0, 0.90, 0.0)
 	player.add_child(camera_pivot)
 
 	var camera := Camera3D.new()
