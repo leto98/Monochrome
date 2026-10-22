@@ -294,40 +294,32 @@ func _create_ground_and_path() -> void:
 	ground.add_child(ground_collision)
 	add_child(ground)
 
-	# One continuous ribbon follows a pronounced S-curve, with irregular edges.
-	var path_material := _mat(Color(0.39, 0.29, 0.19))
-	var segment_count := 100
-	var vertices := PackedVector3Array()
-	var indices := PackedInt32Array()
-	for i in range(segment_count + 1):
-		var t := float(i) / float(segment_count)
+	# Curved trail made from overlapping flattened cylinders for robust rendering.
+	var path_materials := [
+		_mat(Color(0.39, 0.29, 0.19)),
+		_mat(Color(0.43, 0.33, 0.22)),
+		_mat(Color(0.35, 0.26, 0.18))
+	]
+	var segment_count := 90
+	for i in range(segment_count):
+		var t := (float(i) + 0.5) / float(segment_count)
 		var z := lerpf(9.0, -35.0, t)
 		var x := sin(PI * t) * 4.8 * sin(TAU * 1.25 * t)
-		var half_width := 1.0 + 0.16 * sin(t * TAU * 5.0) + 0.08 * sin(t * TAU * 11.0)
-		var next_t := minf(1.0, t + 0.01)
+		var next_t := minf(1.0, t + 1.0 / float(segment_count))
 		var next_x := sin(PI * next_t) * 4.8 * sin(TAU * 1.25 * next_t)
-		var dx := next_x - x
-		var dz := -0.44
-		var side := Vector3(-dz, 0.0, dx).normalized()
-		var edge_noise := 0.08 * sin(t * TAU * 17.0)
-		var left := Vector3(x, 0.025, z) + side * (half_width + edge_noise)
-		var right := Vector3(x, 0.025, z) - side * (half_width - edge_noise)
-		vertices.append(left)
-		vertices.append(right)
-		if i < segment_count:
-			var base := i * 2
-			indices.append_array(PackedInt32Array([base, base + 2, base + 1, base + 1, base + 2, base + 3]))
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var path_mesh := ArrayMesh.new()
-	path_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var path := MeshInstance3D.new()
-	path.name = "WindingForestTrail"
-	path.mesh = path_mesh
-	path.material_override = path_material
-	add_child(path)
+		var next_z := lerpf(9.0, -35.0, next_t)
+		var section := MeshInstance3D.new()
+		section.name = "WindingPath_%02d" % i
+		var section_mesh := CylinderMesh.new()
+		section_mesh.top_radius = 1.12 + 0.12 * sin(t * TAU * 5.0)
+		section_mesh.bottom_radius = section_mesh.top_radius
+		section_mesh.height = 0.035
+		section.mesh = section_mesh
+		section.position = Vector3(x, 0.02, z)
+		section.scale = Vector3(1.0, 1.0, Vector2(next_x - x, next_z - z).length() / 2.24)
+		section.rotation.y = atan2(next_x - x, next_z - z)
+		section.material_override = path_materials[i % path_materials.size()]
+		add_child(section)
 
 func _create_forest() -> void:
 	var trunk_material := _mat(Color(0.22, 0.13, 0.085))
