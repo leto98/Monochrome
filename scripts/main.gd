@@ -254,24 +254,24 @@ func _create_environment() -> void:
 	environment.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.22, 0.23, 0.25)
-	sky_material.sky_horizon_color = Color(0.48, 0.48, 0.49)
-	sky_material.ground_bottom_color = Color(0.10, 0.10, 0.11)
-	sky_material.ground_horizon_color = Color(0.38, 0.38, 0.39)
+	sky_material.sky_top_color = Color(0.055, 0.075, 0.12)
+	sky_material.sky_horizon_color = Color(0.28, 0.34, 0.37)
+	sky_material.ground_bottom_color = Color(0.10, 0.13, 0.10)
+	sky_material.ground_horizon_color = Color(0.27, 0.31, 0.22)
 	sky.sky_material = sky_material
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color(0.58, 0.58, 0.60)
+	environment.ambient_light_color = Color(0.62, 0.66, 0.54)
 	environment.ambient_light_energy = 0.55
 	environment.fog_enabled = true
-	environment.fog_light_color = Color(0.48, 0.48, 0.49)
+	environment.fog_light_color = Color(0.40, 0.46, 0.40)
 	environment.fog_density = 0.018
 	world.environment = environment
 	add_child(world)
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-42, -25, 0)
-	sun.light_color = Color(0.78, 0.78, 0.80)
+	sun.light_color = Color(1.0, 0.82, 0.62)
 	sun.light_energy = 0.7
 	sun.shadow_enabled = true
 	add_child(sun)
@@ -284,7 +284,7 @@ func _create_ground_and_path() -> void:
 	var ground_visual := MeshInstance3D.new()
 	ground_visual.mesh = ground_mesh
 	ground_visual.position.y = -0.5
-	ground_visual.material_override = _mat(Color(0.16, 0.16, 0.17))
+	ground_visual.material_override = _mat(Color(0.20, 0.25, 0.15))
 	ground.add_child(ground_visual)
 	var ground_collision := CollisionShape3D.new()
 	var ground_shape := BoxShape3D.new()
@@ -294,14 +294,29 @@ func _create_ground_and_path() -> void:
 	ground.add_child(ground_collision)
 	add_child(ground)
 
-	var path := MeshInstance3D.new()
-	path.name = "ForestPath"
-	var path_mesh := BoxMesh.new()
-	path_mesh.size = Vector3(3.2, 0.04, 42.0)
-	path.mesh = path_mesh
-	path.position = Vector3(0, 0.025, -13.0)
-	path.material_override = _mat(Color(0.29, 0.29, 0.30))
-	add_child(path)
+	# Reliable curved trail made from short overlapping ground-level segments.
+	var path_materials := [
+		_mat(Color(0.39, 0.29, 0.19)),
+		_mat(Color(0.43, 0.33, 0.22)),
+		_mat(Color(0.35, 0.26, 0.18))
+	]
+	var segment_count := 52
+	for i in range(segment_count):
+		var t := (float(i) + 0.5) / float(segment_count)
+		var z := lerpf(9.0, -35.0, t)
+		var x := sin(PI * t) * 4.8 * sin(TAU * 1.25 * t)
+		var next_t := minf(1.0, t + 1.0 / float(segment_count))
+		var next_x := sin(PI * next_t) * 4.8 * sin(TAU * 1.25 * next_t)
+		var next_z := lerpf(9.0, -35.0, next_t)
+		var segment := MeshInstance3D.new()
+		segment.name = "WindingTrail_%02d" % i
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(2.35, 0.035, 1.15)
+		segment.mesh = mesh
+		segment.position = Vector3(x, 0.02, z)
+		segment.rotation.y = atan2(next_x - x, -(next_z - z))
+		segment.material_override = path_materials[i % path_materials.size()]
+		add_child(segment)
 
 func _create_forest() -> void:
 	var trunk_material := _mat(Color(0.105, 0.105, 0.112))
@@ -524,23 +539,51 @@ func _create_house() -> void:
 	house.name = "DistantHouse"
 	house.position = HOUSE_POSITION
 	add_child(house)
-	var wall_material := _mat(Color(0.19, 0.19, 0.20))
-	var roof_material := _mat(Color(0.11, 0.11, 0.12))
-	var door_material := _mat(Color(0.08, 0.08, 0.09))
-	_mesh_box(house, "HouseBody", Vector3(7.0, 3.2, 5.0), Vector3(0, 1.6, 0), wall_material)
-	_mesh_box(house, "Roof", Vector3(7.8, 0.35, 5.8), Vector3(0, 3.35, 0), roof_material)
-	_mesh_box(house, "FrontStep", Vector3(2.4, 0.18, 0.8), Vector3(0, 0.09, 2.8), roof_material)
-	door = _mesh_box(house, "Door", Vector3(1.15, 2.2, 0.12), Vector3(0, 1.1, 2.57), door_material)
-	door.position = Vector3(-0.57, 1.1, 2.57)
-	door.position += Vector3(0.57, 0, 0)
+
+	var wall_material := _mat(Color(0.20, 0.15, 0.12))
+	var roof_material := _mat(Color(0.12, 0.15, 0.16))
+	var trim_material := _mat(Color(0.31, 0.23, 0.15))
+	var door_material := _mat(Color(0.09, 0.055, 0.04))
+	var window_frame := _mat(Color(0.10, 0.07, 0.045))
+	var window_glow := StandardMaterial3D.new()
+	window_glow.albedo_color = Color(1.0, 0.58, 0.19)
+	window_glow.emission_enabled = true
+	window_glow.emission = Color(1.0, 0.38, 0.08)
+	window_glow.emission_energy_multiplier = 2.0
+
+	_mesh_box(house, "HouseBody", Vector3(6.2, 2.8, 4.7), Vector3(0, 1.4, 0), wall_material)
+	var gable := MeshInstance3D.new()
+	gable.name = "FrontGable"
+	var gable_mesh := PrismMesh.new()
+	gable_mesh.size = Vector3(6.2, 2.1, 0.16)
+	gable.mesh = gable_mesh
+	gable.position = Vector3(0, 3.7, 2.35)
+	gable.material_override = wall_material
+	house.add_child(gable)
+
+	var roof_left := _mesh_box(house, "RoofLeftSlope", Vector3(3.8, 0.22, 5.4), Vector3(-1.55, 3.45, 0), roof_material)
+	roof_left.rotation.z = deg_to_rad(32.0)
+	var roof_right := _mesh_box(house, "RoofRightSlope", Vector3(3.8, 0.22, 5.4), Vector3(1.55, 3.45, 0), roof_material)
+	roof_right.rotation.z = deg_to_rad(-32.0)
+	_mesh_box(house, "FrontStep", Vector3(2.4, 0.18, 0.8), Vector3(0, 0.09, 2.8), trim_material)
+
+	_mesh_box(house, "Doorway", Vector3(1.35, 2.25, 0.08), Vector3(0, 1.12, 2.39), _mat(Color(0.025, 0.022, 0.02)))
+	door = _mesh_box(house, "Door", Vector3(1.05, 2.05, 0.12), Vector3(-0.53, 1.03, 2.48), door_material)
 	door.rotation_degrees.y = 0.0
-	# Pivot the door at its left edge so it can swing open.
-	door.position.x = -0.57
 	door.set_meta("closed_position", door.position)
-	var knob := _mesh_box(house, "DoorKnob", Vector3(0.08, 0.08, 0.08), Vector3(0.38, 1.0, 2.48), _mat(Color(0.55, 0.55, 0.56)))
-	knob.visible = true
-	# A simple dark opening behind the door gives the entrance depth.
-	_mesh_box(house, "Doorway", Vector3(1.35, 2.35, 0.08), Vector3(0, 1.15, 2.53), _mat(Color(0.035, 0.035, 0.04)))
+	_mesh_box(house, "DoorPanel", Vector3(0.72, 1.52, 0.035), Vector3(-0.53, 1.05, 2.405), trim_material)
+	_mesh_box(house, "DoorKnob", Vector3(0.07, 0.07, 0.07), Vector3(-0.18, 1.0, 2.36), _mat(Color(0.68, 0.48, 0.20)))
+
+	for window_data in [Vector3(-1.75, 1.85, 2.43), Vector3(1.75, 1.85, 2.43), Vector3(0.0, 3.35, 2.43)]:
+		_mesh_box(house, "WindowFrame", Vector3(0.92, 0.92, 0.12), window_data, window_frame)
+		_mesh_box(house, "GlowingWindow", Vector3(0.68, 0.68, 0.035), Vector3(window_data.x, window_data.y, 2.355), window_glow)
+		_mesh_box(house, "WindowCrossbarV", Vector3(0.045, 0.72, 0.045), Vector3(window_data.x, window_data.y, 2.325), trim_material)
+		_mesh_box(house, "WindowCrossbarH", Vector3(0.72, 0.045, 0.045), Vector3(window_data.x, window_data.y, 2.325), trim_material)
+
+	var porch_roof := _mesh_box(house, "SmallPorchRoof", Vector3(3.8, 0.16, 1.4), Vector3(0, 2.65, 3.05), roof_material)
+	porch_roof.rotation.x = deg_to_rad(7.0)
+	for x in [-1.55, 1.55]:
+		_mesh_box(house, "PorchPost", Vector3(0.13, 2.45, 0.13), Vector3(x, 1.22, 3.55), trim_material)
 
 func _create_player() -> void:
 	player = CharacterBody3D.new()
