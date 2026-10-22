@@ -356,133 +356,138 @@ func _create_player() -> void:
 	player.position = Vector3(0, 0.95, 5.0)
 	player.set_script(load("res://scripts/player.gd"))
 
-	# Keep the character as a readable dark silhouette, with a more human shape.
-	var skin := _mat(Color(0.055, 0.055, 0.06))
-	var clothes := _mat(Color(0.085, 0.085, 0.09))
-	var hands_material := _mat(Color(0.06, 0.06, 0.065))
-	var eye_material := _mat(Color(0.78, 0.78, 0.79))
+	# Stylized human silhouette based on the supplied reference: oversized head,
+	# soft blocky hair, narrow neck, simple rounded tunic, short arms and slim legs.
+	var silhouette := _mat(Color(0.012, 0.012, 0.015))
+	var clothing := _mat(Color(0.025, 0.025, 0.03))
+	var eye_material := StandardMaterial3D.new()
+	eye_material.albedo_color = Color(1.0, 1.0, 1.0)
+	eye_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	eye_material.emission_enabled = true
+	eye_material.emission = Color(0.95, 0.95, 1.0)
+	eye_material.emission_energy_multiplier = 2.2
 
-	var body := MeshInstance3D.new()
-	body.name = "Body"
-	var body_mesh := CapsuleMesh.new()
-	body_mesh.radius = 0.23
-	body_mesh.height = 0.82
-	body.mesh = body_mesh
-	body.position = Vector3(0, -0.12, 0)
-	body.material_override = clothes
-	player.add_child(body)
+	# Main torso: slightly wider at the shoulders and rounded at the hem.
+	var torso := MeshInstance3D.new()
+	torso.name = "Body"
+	var torso_mesh := CapsuleMesh.new()
+	torso_mesh.radius = 0.255
+	torso_mesh.height = 0.82
+	torso.mesh = torso_mesh
+	torso.position = Vector3(0.0, -0.17, 0.0)
+	torso.scale = Vector3(0.92, 1.0, 0.72)
+	torso.material_override = clothing
+	player.add_child(torso)
 
+	var neck := MeshInstance3D.new()
+	neck.name = "Neck"
+	var neck_mesh := CylinderMesh.new()
+	neck_mesh.top_radius = 0.085
+	neck_mesh.bottom_radius = 0.105
+	neck_mesh.height = 0.20
+	neck.mesh = neck_mesh
+	neck.position = Vector3(0.0, 0.31, 0.0)
+	neck.material_override = silhouette
+	player.add_child(neck)
+
+	# Large head, with asymmetrical angular hair tufts to make the silhouette distinctive.
 	var head := MeshInstance3D.new()
 	head.name = "Head"
 	var head_mesh := SphereMesh.new()
-	head_mesh.radius = 0.205
-	head_mesh.height = 0.41
+	head_mesh.radius = 0.37
+	head_mesh.height = 0.72
 	head.mesh = head_mesh
-	head.position = Vector3(0, 0.48, 0)
-	head.material_override = skin
+	head.position = Vector3(0.0, 0.64, 0.0)
+	head.scale = Vector3(1.0, 1.0, 0.82)
+	head.material_override = silhouette
 	player.add_child(head)
 
-	# Build each arm as a connected hierarchy so the wrist and hand follow the forearm.
-	# The hand is a simple palm with short fingers and a thumb, readable in silhouette.
-	var upper_arm_mesh := CapsuleMesh.new()
-	upper_arm_mesh.radius = 0.09
-	upper_arm_mesh.height = 0.44
-	var forearm_mesh := CapsuleMesh.new()
-	forearm_mesh.radius = 0.072
-	forearm_mesh.height = 0.34
-	var palm_mesh := CapsuleMesh.new()
-	palm_mesh.radius = 0.052
-	palm_mesh.height = 0.15
-	var finger_mesh := CapsuleMesh.new()
-	finger_mesh.radius = 0.014
-	finger_mesh.height = 0.075
-	var thumb_mesh := CapsuleMesh.new()
-	thumb_mesh.radius = 0.017
-	thumb_mesh.height = 0.07
+	var hair_cap := MeshInstance3D.new()
+	hair_cap.name = "HairSilhouette"
+	var hair_mesh := SphereMesh.new()
+	hair_mesh.radius = 0.365
+	hair_mesh.height = 0.48
+	hair_cap.mesh = hair_mesh
+	hair_cap.position = Vector3(0.025, 0.79, 0.005)
+	hair_cap.scale = Vector3(1.0, 0.72, 0.88)
+	hair_cap.material_override = silhouette
+	player.add_child(hair_cap)
+
+	for tuft_data in [
+		Vector3(-0.22, 0.99, -0.005),
+		Vector3(-0.11, 1.015, 0.0),
+		Vector3(0.18, 0.94, 0.0)
+	]:
+		var tuft := MeshInstance3D.new()
+		var tuft_mesh := PrismMesh.new()
+		tuft_mesh.size = Vector3(0.16, 0.20, 0.20)
+		tuft.mesh = tuft_mesh
+		tuft.position = tuft_data
+		tuft.rotation.z = deg_to_rad(-12.0)
+		tuft.material_override = silhouette
+		player.add_child(tuft)
+
+	# Arms rest close to the body so they read as a single clean silhouette.
+	var arm_mesh := CapsuleMesh.new()
+	arm_mesh.radius = 0.085
+	arm_mesh.height = 0.54
 	for side in [-1.0, 1.0]:
-		var upper_arm := Node3D.new()
-		upper_arm.name = "UpperArm_%s" % ("L" if side < 0 else "R")
-		upper_arm.position = Vector3(side * 0.23, 0.15, 0.0)
-		player.add_child(upper_arm)
+		var arm := Node3D.new()
+		arm.name = "UpperArm_%s" % ("L" if side < 0 else "R")
+		arm.position = Vector3(side * 0.235, 0.02, 0.0)
+		player.add_child(arm)
+		var arm_visual := MeshInstance3D.new()
+		arm_visual.name = "ArmMesh"
+		arm_visual.mesh = arm_mesh
+		arm_visual.position = Vector3(side * 0.015, -0.25, 0.0)
+		arm_visual.rotation.z = side * deg_to_rad(-7.0)
+		arm_visual.material_override = clothing
+		arm.add_child(arm_visual)
 
-		var upper_arm_visual := MeshInstance3D.new()
-		upper_arm_visual.name = "UpperArmMesh"
-		upper_arm_visual.mesh = upper_arm_mesh
-		upper_arm_visual.position = Vector3(side * 0.035, -0.19, 0.0)
-		upper_arm_visual.rotation.z = side * deg_to_rad(-5.0)
-		upper_arm_visual.material_override = clothes
-		upper_arm.add_child(upper_arm_visual)
-
-		var forearm := Node3D.new()
-		forearm.name = "Forearm_%s" % ("L" if side < 0 else "R")
-		forearm.position = Vector3(side * 0.055, -0.36, 0.0)
-		upper_arm.add_child(forearm)
-
-		var forearm_visual := MeshInstance3D.new()
-		forearm_visual.name = "ForearmMesh"
-		forearm_visual.mesh = forearm_mesh
-		forearm_visual.position = Vector3(side * 0.008, -0.145, -0.005)
-		forearm_visual.material_override = clothes
-		forearm.add_child(forearm_visual)
-
-		var hand := Node3D.new()
+		var hand := MeshInstance3D.new()
 		hand.name = "Hand_%s" % ("L" if side < 0 else "R")
-		hand.position = Vector3(0.0, -0.30, -0.005)
-		forearm.add_child(hand)
+		var hand_mesh := SphereMesh.new()
+		hand_mesh.radius = 0.065
+		hand_mesh.height = 0.13
+		hand.mesh = hand_mesh
+		hand.position = Vector3(side * 0.025, -0.53, -0.005)
+		hand.scale = Vector3(0.9, 1.0, 0.8)
+		hand.material_override = silhouette
+		arm.add_child(hand)
 
-		var palm := MeshInstance3D.new()
-		palm.name = "Palm"
-		palm.mesh = palm_mesh
-		palm.position = Vector3(0.0, -0.025, 0.0)
-		palm.material_override = hands_material
-		hand.add_child(palm)
-
-		for finger_index in range(3):
-			var finger := MeshInstance3D.new()
-			finger.name = "Finger_%d" % finger_index
-			finger.mesh = finger_mesh
-			finger.position = Vector3((float(finger_index) - 1.0) * 0.032, -0.105, 0.0)
-			finger.material_override = hands_material
-			hand.add_child(finger)
-
-		var thumb := MeshInstance3D.new()
-		thumb.name = "Thumb"
-		thumb.mesh = thumb_mesh
-		thumb.position = Vector3(side * 0.052, -0.035, 0.005)
-		thumb.rotation.z = -side * deg_to_rad(48.0)
-		thumb.material_override = hands_material
-		hand.add_child(thumb)
-
-	# Separate legs and small feet make the stance clear from a distance.
+	# Short, slim trouser legs and narrow feet, kept separate for the walk cycle.
 	var leg_mesh := CapsuleMesh.new()
-	leg_mesh.radius = 0.115
-	leg_mesh.height = 0.58
+	leg_mesh.radius = 0.085
+	leg_mesh.height = 0.52
 	for side in [-1.0, 1.0]:
 		var leg := MeshInstance3D.new()
 		leg.name = "Leg_%s" % ("L" if side < 0 else "R")
 		leg.mesh = leg_mesh
-		leg.position = Vector3(side * 0.13, -0.57, 0)
-		leg.material_override = clothes
+		leg.position = Vector3(side * 0.105, -0.59, 0.0)
+		leg.material_override = clothing
 		player.add_child(leg)
 
 		var foot := MeshInstance3D.new()
 		foot.name = "Foot_%s" % ("L" if side < 0 else "R")
-		var foot_mesh := BoxMesh.new()
-		foot_mesh.size = Vector3(0.19, 0.11, 0.32)
+		var foot_mesh := CapsuleMesh.new()
+		foot_mesh.radius = 0.055
+		foot_mesh.height = 0.25
 		foot.mesh = foot_mesh
-		foot.position = Vector3(side * 0.13, -0.84, -0.075)
-		foot.material_override = skin
+		foot.position = Vector3(side * 0.105, -0.84, -0.055)
+		foot.rotation.x = deg_to_rad(90.0)
+		foot.material_override = silhouette
 		player.add_child(foot)
 
-	# Two tiny pale eyes give the face the eerie, readable Limbo-inspired look.
+	# Bright, softly glowing eyes visible through the dark face.
 	for side in [-1.0, 1.0]:
 		var eye := MeshInstance3D.new()
 		eye.name = "Eye_%s" % ("L" if side < 0 else "R")
 		var eye_mesh := SphereMesh.new()
-		eye_mesh.radius = 0.025
-		eye_mesh.height = 0.05
+		eye_mesh.radius = 0.038
+		eye_mesh.height = 0.09
 		eye.mesh = eye_mesh
-		eye.position = Vector3(side * 0.075, 0.50, -0.176)
+		eye.position = Vector3(side * 0.125, 0.66, -0.292)
+		eye.scale = Vector3(0.78, 1.0, 0.55)
 		eye.material_override = eye_material
 		player.add_child(eye)
 
