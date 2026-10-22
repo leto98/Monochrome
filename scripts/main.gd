@@ -8,7 +8,7 @@ const DOOR_POSITION := Vector3(0.0, 1.0, -21.5)
 const INTERACTION_DISTANCE := 2.6
 
 var player: CharacterBody3D
-var door: MeshInstance3D
+var door: Node3D
 var prompt: Label
 var inside_message: Label
 var door_open := false
@@ -200,7 +200,7 @@ func _return_to_menu() -> void:
 	pause_screen.visible = false
 	title_screen.visible = true
 	player.velocity = Vector3.ZERO
-	player.position = Vector3(0.0, 0.95, 5.0)
+	player.position = Vector3(0.0, 0.68, 5.0)
 	door_open = false
 	door.rotation_degrees.y = 0.0
 	prompt.visible = false
@@ -682,15 +682,18 @@ func _create_house() -> void:
 	_mesh_box(house, "Chimney", Vector3(0.48, 1.45, 0.48), Vector3(1.45, 4.35, -1.15), stone_material)
 	_mesh_box(house, "ChimneyCap", Vector3(0.62, 0.12, 0.62), Vector3(1.45, 5.08, -1.15), log_dark)
 
-	# Door names and position remain compatible with the existing interaction logic.
+	# Door assembly pivots at its left hinge so every plank and fitting moves together.
 	_mesh_box(house, "Doorway", Vector3(1.25, 2.18, 0.08), Vector3(0, 1.25, 2.31), _mat(Color(0.025, 0.022, 0.02)))
-	door = _mesh_box(house, "Door", Vector3(0.98, 2.02, 0.12), Vector3(-0.48, 1.02, 2.39), log_dark)
+	door = Node3D.new()
+	door.name = "DoorHinge"
+	door.position = Vector3(-0.97, 1.02, 2.39)
+	house.add_child(door)
+	var door_panel := _mesh_box(door, "Door", Vector3(0.98, 2.02, 0.12), Vector3(0.49, 0.0, 0.0), log_dark)
 	door.rotation_degrees.y = 0.0
-	door.set_meta("closed_position", door.position)
 	for plank in range(4):
-		_mesh_box(house, "DoorPlank_%d" % plank, Vector3(0.20, 1.82, 0.025), Vector3(-0.77 + float(plank) * 0.19, 1.03, 2.315), log_mid)
-	_mesh_box(house, "DoorCrossBrace", Vector3(0.82, 0.10, 0.035), Vector3(-0.48, 0.55, 2.29), log_light)
-	_mesh_box(house, "DoorKnob", Vector3(0.07, 0.07, 0.07), Vector3(-0.18, 1.0, 2.27), _mat(Color(0.68, 0.48, 0.20)))
+		_mesh_box(door, "DoorPlank_%d" % plank, Vector3(0.20, 1.82, 0.025), Vector3(0.20 + float(plank) * 0.19, 0.01, -0.075), log_mid)
+	_mesh_box(door, "DoorCrossBrace", Vector3(0.82, 0.10, 0.035), Vector3(0.49, -0.47, -0.10), log_light)
+	_mesh_box(door, "DoorKnob", Vector3(0.07, 0.07, 0.07), Vector3(0.79, -0.02, -0.12), _mat(Color(0.68, 0.48, 0.20)))
 	_mesh_box(house, "FrontStep", Vector3(2.0, 0.18, 0.72), Vector3(0, 0.12, 2.85), stone_material)
 
 	# Warm windows: two at ground level and one in the attic gable.
@@ -888,7 +891,7 @@ func _create_player() -> void:
 
 	var camera := Camera3D.new()
 	camera.name = "Camera3D"
-	camera.position = Vector3(0.0, 1.65, 6.8)
+	camera.position = Vector3(0.0, 2.29, 9.45)
 	camera.current = true
 	camera_pivot.add_child(camera)
 	camera.look_at(camera_pivot.global_position, Vector3.UP)
