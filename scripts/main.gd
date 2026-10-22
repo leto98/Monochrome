@@ -1,8 +1,8 @@
 extends Node3D
 
-const TREE_COUNT := 76
-const GRASS_CLUMPS := 220
-const DEBRIS_COUNT := 95
+const TREE_COUNT := 150
+const GRASS_CLUMPS := 420
+const DEBRIS_COUNT := 180
 const HOUSE_POSITION := Vector3(0.0, 0.0, -25.0)
 const DOOR_POSITION := Vector3(0.0, 1.0, -21.5)
 const INTERACTION_DISTANCE := 2.6
@@ -20,6 +20,8 @@ var is_paused := false
 var sound_enabled := true
 var title_sound_button: Button
 var pause_sound_button: Button
+var river_fish: Array[Node3D] = []
+var fish_swim_time := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -29,6 +31,7 @@ func _ready() -> void:
 	_create_ground_details()
 	_create_path_lamp()
 	_create_debris()
+	_create_expanded_landscape()
 	_create_house()
 	_create_player()
 	_create_ui()
@@ -44,7 +47,16 @@ func _ready() -> void:
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
 	get_tree().paused = true
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	fish_swim_time += delta
+	for i in range(river_fish.size()):
+		var fish := river_fish[i]
+		if is_instance_valid(fish):
+			fish.position.z += delta * (0.7 + float(i % 3) * 0.22)
+			fish.position.x = fish.get_meta("home_x") + sin(fish_swim_time * 1.3 + float(i)) * 0.32
+			fish.rotation.y = sin(fish_swim_time * 1.3 + float(i)) * 0.22
+			if fish.position.z > 55.0:
+				fish.position.z = -55.0
 	if not game_started or is_paused:
 		return
 	if player == null:
@@ -284,7 +296,7 @@ func _create_ground_and_path() -> void:
 	var ground := StaticBody3D.new()
 	ground.name = "Ground"
 	var ground_mesh := BoxMesh.new()
-	ground_mesh.size = Vector3(100, 1, 100)
+	ground_mesh.size = Vector3(180, 1, 180)
 	var ground_visual := MeshInstance3D.new()
 	ground_visual.mesh = ground_mesh
 	ground_visual.position.y = -0.5
@@ -292,7 +304,7 @@ func _create_ground_and_path() -> void:
 	ground.add_child(ground_visual)
 	var ground_collision := CollisionShape3D.new()
 	var ground_shape := BoxShape3D.new()
-	ground_shape.size = Vector3(100, 1, 100)
+	ground_shape.size = Vector3(180, 1, 180)
 	ground_collision.shape = ground_shape
 	ground_collision.position.y = -0.5
 	ground.add_child(ground_collision)
@@ -335,8 +347,8 @@ func _create_forest() -> void:
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var tree := Node3D.new()
 		tree.name = "Tree_%02d" % i
-		var x := side * rng.randf_range(8.0, 17.0)
-		var z := rng.randf_range(-43.0, 16.0)
+		var x := side * rng.randf_range(10.0, 35.0)
+		var z := rng.randf_range(-76.0, 56.0)
 		tree.position = Vector3(x, 0, z)
 		tree.rotation.y = rng.randf_range(-0.35, 0.35)
 		var height := rng.randf_range(3.0, 5.8)
@@ -450,8 +462,8 @@ func _create_ground_details() -> void:
 		patch_mesh.bottom_radius = patch_mesh.top_radius * rng.randf_range(0.8, 1.15)
 		patch_mesh.height = 0.025
 		patch.mesh = patch_mesh
-		var px := rng.randf_range(-15.0, 15.0)
-		var pz := rng.randf_range(-43.0, 17.0)
+		var px := rng.randf_range(-38.0, 38.0)
+		var pz := rng.randf_range(-76.0, 56.0)
 		patch.position = Vector3(px, 0.012, pz)
 		patch.rotation.y = rng.randf_range(0.0, TAU)
 		patch.material_override = soil_material if i % 3 != 0 else moss_material
@@ -460,7 +472,7 @@ func _create_ground_details() -> void:
 	# Small angular blades in uneven clumps, kept away from the centre of the path.
 	for i in range(GRASS_CLUMPS):
 		var x := rng.randf_range(-15.0, 15.0)
-		var z := rng.randf_range(-44.0, 18.0)
+		var z := rng.randf_range(-76.0, 56.0)
 		if absf(x) < 1.9:
 			x = signf(x) * rng.randf_range(2.0, 4.2)
 		var clump := Node3D.new()
@@ -499,8 +511,8 @@ func _create_debris() -> void:
 	for i in range(DEBRIS_COUNT):
 		var debris := Node3D.new()
 		debris.name = "ForestDebris_%03d" % i
-		var x := rng.randf_range(-14.0, 14.0)
-		var z := rng.randf_range(-44.0, 18.0)
+		var x := rng.randf_range(-37.0, 37.0)
+		var z := rng.randf_range(-76.0, 56.0)
 		if absf(x) < 1.75:
 			x = signf(x) * rng.randf_range(2.0, 3.6)
 		debris.position = Vector3(x, 0.0, z)
@@ -732,6 +744,167 @@ func _create_house() -> void:
 	porch_light.omni_range = 8.0
 	porch_light.omni_attenuation = 1.5
 	house.add_child(porch_light)
+
+
+func _create_expanded_landscape() -> void:
+	# A wider wilderness with layered soil, uneven ridges, boulders, and a river valley.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 613908
+	var soil_materials := [
+		_mat(Color(0.24, 0.22, 0.18)),
+		_mat(Color(0.29, 0.27, 0.22)),
+		_mat(Color(0.17, 0.18, 0.16)),
+		_mat(Color(0.32, 0.29, 0.23)),
+		_mat(Color(0.21, 0.24, 0.19))
+	]
+	var rock_materials := [
+		_mat(Color(0.31, 0.32, 0.31)),
+		_mat(Color(0.22, 0.23, 0.23)),
+		_mat(Color(0.39, 0.38, 0.34)),
+		_mat(Color(0.16, 0.17, 0.17))
+	]
+	var water_material := StandardMaterial3D.new()
+	water_material.albedo_color = Color(0.20, 0.31, 0.32, 0.88)
+	water_material.roughness = 0.22
+	water_material.metallic = 0.08
+	water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	# Broad, thin soil patches give the ground several distinct natural surfaces.
+	for i in range(145):
+		var patch := MeshInstance3D.new()
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = rng.randf_range(1.2, 4.8)
+		mesh.bottom_radius = mesh.top_radius * rng.randf_range(0.72, 1.18)
+		mesh.height = rng.randf_range(0.025, 0.075)
+		mesh.radial_segments = rng.randi_range(5, 9)
+		patch.mesh = mesh
+		var x := rng.randf_range(-75.0, 75.0)
+		var z := rng.randf_range(-78.0, 78.0)
+		# Keep the river corridor clear enough to read as a continuous valley.
+		if x > 15.0 and x < 39.0:
+			x = -rng.randf_range(20.0, 65.0)
+		patch.position = Vector3(x, 0.018 + float(i % 3) * 0.004, z)
+		patch.rotation.y = rng.randf_range(0.0, TAU)
+		patch.material_override = soil_materials[rng.randi_range(0, soil_materials.size() - 1)]
+		add_child(patch)
+
+	# Scattered low-poly stones range from pebbles to large boulders.
+	for i in range(245):
+		var rock := MeshInstance3D.new()
+		var mesh := SphereMesh.new()
+		mesh.radius = 1.0
+		mesh.height = 1.6
+		mesh.radial_segments = rng.randi_range(5, 8)
+		mesh.rings = rng.randi_range(3, 5)
+		rock.mesh = mesh
+		var x := rng.randf_range(-78.0, 78.0)
+		var z := rng.randf_range(-80.0, 80.0)
+		# Leave the main trail and the water surface mostly unobstructed.
+		if absf(x) < 4.0 and z > -38.0 and z < 12.0:
+			x = -rng.randf_range(5.0, 10.0)
+		if x > 18.0 and x < 37.0:
+			x = rng.randf_range(-70.0, 8.0)
+		var size := rng.randf_range(0.12, 0.48)
+		if i % 13 == 0:
+			size = rng.randf_range(0.75, 1.45)
+		rock.scale = Vector3(size * rng.randf_range(0.8, 1.4), size * rng.randf_range(0.55, 1.0), size * rng.randf_range(0.8, 1.3))
+		rock.position = Vector3(x, rock.scale.y * 0.42, z)
+		rock.rotation = Vector3(rng.randf_range(-0.18, 0.18), rng.randf_range(0.0, TAU), rng.randf_range(-0.18, 0.18))
+		rock.material_override = rock_materials[rng.randi_range(0, rock_materials.size() - 1)]
+		add_child(rock)
+
+	# Low irregular ridges on both sides of the valley.
+	for i in range(34):
+		var ridge := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(rng.randf_range(5.0, 14.0), rng.randf_range(0.45, 1.5), rng.randf_range(2.5, 6.0))
+		ridge.mesh = mesh
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var x := side * rng.randf_range(10.0, 72.0)
+		if side > 0.0 and x < 39.0:
+			x = rng.randf_range(40.0, 70.0)
+		ridge.position = Vector3(x, mesh.size.y * 0.25 - 0.06, rng.randf_range(-76.0, 76.0))
+		ridge.rotation.y = rng.randf_range(-0.6, 0.6)
+		ridge.rotation.z = rng.randf_range(-0.12, 0.12)
+		ridge.material_override = soil_materials[rng.randi_range(0, soil_materials.size() - 1)]
+		add_child(ridge)
+
+	# A long winding river occupies a shallow valley to the east of the cabin.
+	# Overlapping segments follow a gentle curve; raised banks frame the water.
+	var water_segments := 64
+	for i in range(water_segments):
+		var t := (float(i) + 0.5) / float(water_segments)
+		var z := lerpf(78.0, -78.0, t)
+		var x := 27.0 + sin(t * TAU * 1.35) * 5.5
+		var next_t := minf(1.0, t + 1.0 / float(water_segments))
+		var next_x := 27.0 + sin(next_t * TAU * 1.35) * 5.5
+		var segment := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(5.6, 0.10, 2.8)
+		segment.mesh = mesh
+		segment.position = Vector3(x, -0.26, z)
+		segment.rotation.y = atan2(next_x - x, -(lerpf(78.0, -78.0, next_t) - z))
+		segment.material_override = water_material
+		add_child(segment)
+		for bank_side in [-1.0, 1.0]:
+			var bank := MeshInstance3D.new()
+			var bank_mesh := BoxMesh.new()
+			bank_mesh.size = Vector3(1.2, 0.42, 3.0)
+			bank.mesh = bank_mesh
+			bank.position = Vector3(x + bank_side * 3.1, -0.04, z)
+			bank.rotation.y = segment.rotation.y
+			bank.material_override = soil_materials[1] if i % 3 == 0 else soil_materials[2]
+			add_child(bank)
+
+	# A lower, narrow stream sits beneath a separate rocky ravine at the far end.
+	for i in range(28):
+		var t := (float(i) + 0.5) / 28.0
+		var z := lerpf(-80.0, -34.0, t)
+		var x := -38.0 + sin(t * TAU * 1.2) * 3.2
+		var stream := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(1.7, 0.06, 2.0)
+		stream.mesh = mesh
+		stream.position = Vector3(x, -0.72, z)
+		stream.rotation.y = sin(t * TAU * 1.2) * 0.12
+		stream.material_override = water_material
+		add_child(stream)
+		for side in [-1.0, 1.0]:
+			var cliff := MeshInstance3D.new()
+			var cliff_mesh := BoxMesh.new()
+			cliff_mesh.size = Vector3(rng.randf_range(2.0, 4.2), rng.randf_range(1.0, 2.3), 2.5)
+			cliff.mesh = cliff_mesh
+			cliff.position = Vector3(x + side * 3.0, -0.10 + cliff_mesh.size.y * 0.2, z)
+			cliff.rotation.z = side * rng.randf_range(-0.16, 0.16)
+			cliff.material_override = rock_materials[rng.randi_range(0, rock_materials.size() - 1)]
+			add_child(cliff)
+
+	# Small low-poly fish silhouettes swim along the main river.
+	var fish_material := _mat(Color(0.62, 0.65, 0.61))
+	for i in range(12):
+		var fish := Node3D.new()
+		fish.name = "RiverFish_%02d" % i
+		fish.position = Vector3(27.0 + sin(float(i) * 1.7) * 1.6, -0.12, -72.0 + float(i) * 12.0)
+		fish.set_meta("home_x", fish.position.x)
+		var body := MeshInstance3D.new()
+		var body_mesh := SphereMesh.new()
+		body_mesh.radius = 0.22
+		body_mesh.height = 0.24
+		body.mesh = body_mesh
+		body.scale = Vector3(1.35, 0.55, 0.65)
+		body.material_override = fish_material
+		fish.add_child(body)
+		var tail := MeshInstance3D.new()
+		var tail_mesh := PrismMesh.new()
+		tail_mesh.size = Vector3(0.18, 0.18, 0.05)
+		tail.mesh = tail_mesh
+		tail.position = Vector3(0.28, 0.0, 0.0)
+		tail.rotation.y = deg_to_rad(90.0)
+		tail.material_override = fish_material
+		fish.add_child(tail)
+		add_child(fish)
+		river_fish.append(fish)
 
 func _create_player() -> void:
 	player = CharacterBody3D.new()
