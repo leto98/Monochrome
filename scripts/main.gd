@@ -319,19 +319,19 @@ func _create_ground_and_path() -> void:
 		add_child(segment)
 
 func _create_forest() -> void:
-	var trunk_material := _mat(Color(0.105, 0.105, 0.112))
-	var trunk_light := _mat(Color(0.145, 0.145, 0.152))
-	var bark_shadow := _mat(Color(0.075, 0.075, 0.082))
-	var leaf_material := _mat(Color(0.205, 0.205, 0.215))
-	var leaf_light := _mat(Color(0.265, 0.265, 0.275))
-	var leaf_dark := _mat(Color(0.155, 0.155, 0.165))
+	var trunk_material := _mat(Color(0.24, 0.14, 0.085))
+	var trunk_light := _mat(Color(0.38, 0.25, 0.13))
+	var bark_shadow := _mat(Color(0.13, 0.075, 0.045))
+	var leaf_material := _mat(Color(0.20, 0.34, 0.17))
+	var leaf_light := _mat(Color(0.40, 0.48, 0.24))
+	var leaf_dark := _mat(Color(0.10, 0.23, 0.13))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 24019
 	for i in range(TREE_COUNT):
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var tree := Node3D.new()
 		tree.name = "Tree_%02d" % i
-		var x := side * rng.randf_range(3.4, 15.0)
+		var x := side * rng.randf_range(8.0, 17.0)
 		var z := rng.randf_range(-43.0, 16.0)
 		tree.position = Vector3(x, 0, z)
 		tree.rotation.y = rng.randf_range(-0.35, 0.35)
@@ -386,16 +386,44 @@ func _create_forest() -> void:
 			branch.material_override = trunk_material
 			tree.add_child(branch)
 
-		for crown_index in range(3):
-			var crown := MeshInstance3D.new()
-			var crown_mesh := PrismMesh.new()
-			var crown_width := rng.randf_range(1.7, 2.8)
-			crown_mesh.size = Vector3(crown_width, rng.randf_range(1.8, 2.8), crown_width * rng.randf_range(0.7, 1.1))
-			crown.mesh = crown_mesh
-			crown.position = Vector3(rng.randf_range(-0.55, 0.55), height + crown_index * 0.55, rng.randf_range(-0.45, 0.45))
-			crown.rotation.y = rng.randf_range(-0.7, 0.7)
-			crown.material_override = [leaf_dark, leaf_material, leaf_light][crown_index]
-			tree.add_child(crown)
+		# Mix distinct silhouettes: layered pines, broad round crowns, and irregular clustered trees.
+		var tree_style := rng.randi_range(0, 2)
+		var canopy_colors := [leaf_dark, leaf_material, leaf_light]
+		if tree_style == 0:
+			for crown_index in range(4):
+				var crown := MeshInstance3D.new()
+				var crown_mesh := ConeMesh.new()
+				crown_mesh.bottom_radius = rng.randf_range(0.75, 1.35)
+				crown_mesh.top_radius = 0.03
+				crown_mesh.height = rng.randf_range(1.35, 2.1)
+				crown_mesh.radial_segments = rng.randi_range(5, 7)
+				crown.mesh = crown_mesh
+				crown.position = Vector3(rng.randf_range(-0.2, 0.2), height * 0.48 + crown_index * 0.62, rng.randf_range(-0.2, 0.2))
+				crown.rotation.y = rng.randf_range(0.0, TAU)
+				crown.material_override = canopy_colors[rng.randi_range(0, 2)]
+				tree.add_child(crown)
+		elif tree_style == 1:
+			for crown_index in range(4):
+				var crown := MeshInstance3D.new()
+				var crown_mesh := SphereMesh.new()
+				crown_mesh.radius = rng.randf_range(0.8, 1.25)
+				crown_mesh.height = crown_mesh.radius * rng.randf_range(1.25, 1.8)
+				crown.mesh = crown_mesh
+				crown.position = Vector3(rng.randf_range(-0.85, 0.85), height + rng.randf_range(0.15, 1.0), rng.randf_range(-0.7, 0.7))
+				crown.scale = Vector3(rng.randf_range(0.8, 1.2), 1.0, rng.randf_range(0.8, 1.2))
+				crown.material_override = canopy_colors[rng.randi_range(0, 2)]
+				tree.add_child(crown)
+		else:
+			for crown_index in range(5):
+				var crown := MeshInstance3D.new()
+				var crown_mesh := PrismMesh.new()
+				var crown_width := rng.randf_range(1.0, 2.0)
+				crown_mesh.size = Vector3(crown_width, rng.randf_range(1.1, 2.1), crown_width * rng.randf_range(0.7, 1.2))
+				crown.mesh = crown_mesh
+				crown.position = Vector3(rng.randf_range(-0.9, 0.9), height + rng.randf_range(-0.1, 1.3), rng.randf_range(-0.8, 0.8))
+				crown.rotation.y = rng.randf_range(-1.0, 1.0)
+				crown.material_override = canopy_colors[rng.randi_range(0, 2)]
+				tree.add_child(crown)
 		add_child(tree)
 
 func _create_ground_details() -> void:
