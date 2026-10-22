@@ -27,6 +27,7 @@ func _ready() -> void:
 	_create_ground_and_path()
 	_create_forest()
 	_create_ground_details()
+	_create_path_lamp()
 	_create_debris()
 	_create_house()
 	_create_player()
@@ -561,6 +562,62 @@ func _create_debris() -> void:
 				leaf.material_override = leaf_material
 				debris.add_child(leaf)
 		add_child(debris)
+
+
+func _create_path_lamp() -> void:
+	# A weathered timber post with a hanging, warm-lit lantern beside the trail.
+	var lamp := Node3D.new()
+	lamp.name = "OldWoodenPathLamp"
+	lamp.position = Vector3(2.5, 0.0, -10.0)
+	add_child(lamp)
+
+	var dark_wood := _mat(Color(0.12, 0.075, 0.045))
+	var worn_wood := _mat(Color(0.25, 0.16, 0.085))
+	var wood_highlight := _mat(Color(0.34, 0.23, 0.12))
+	var iron := _mat(Color(0.075, 0.07, 0.055))
+	var glow_glass := StandardMaterial3D.new()
+	glow_glass.albedo_color = Color(1.0, 0.56, 0.20, 0.82)
+	glow_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glow_glass.emission_enabled = true
+	glow_glass.emission = Color(1.0, 0.34, 0.07)
+	glow_glass.emission_energy_multiplier = 3.0
+	glow_glass.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+	# Tall, slightly uneven timber support.
+	_mesh_box(lamp, "RoughWoodenPost", Vector3(0.22, 3.25, 0.24), Vector3(0, 1.625, 0), dark_wood)
+	_mesh_box(lamp, "WornFrontGrain", Vector3(0.045, 2.65, 0.025), Vector3(-0.045, 1.55, -0.132), worn_wood)
+	_mesh_box(lamp, "PostFootBrace", Vector3(0.38, 0.16, 0.36), Vector3(0, 0.12, 0), worn_wood)
+
+	# Short arm and diagonal brace hold the lantern out over the path.
+	_mesh_box(lamp, "LanternArm", Vector3(0.95, 0.16, 0.18), Vector3(-0.48, 2.88, 0), worn_wood)
+	var brace := _mesh_box(lamp, "ArmBrace", Vector3(0.62, 0.10, 0.12), Vector3(-0.34, 2.66, 0), dark_wood)
+	brace.rotation_degrees.z = -32.0
+	_mesh_box(lamp, "ArmEndIronBand", Vector3(0.12, 0.21, 0.21), Vector3(-0.89, 2.88, 0), iron)
+
+	# Lantern cage: glowing panes, dark iron corners, a peaked cap and base.
+	var lantern := Node3D.new()
+	lantern.name = "HangingLantern"
+	lantern.position = Vector3(-0.89, 2.49, 0)
+	lamp.add_child(lantern)
+	_mesh_box(lantern, "TopCap", Vector3(0.48, 0.12, 0.42), Vector3(0, 0.35, 0), dark_wood)
+	_mesh_box(lantern, "CapRoofLeft", Vector3(0.29, 0.07, 0.46), Vector3(-0.12, 0.43, 0), worn_wood).rotation_degrees.z = -22.0
+	_mesh_box(lantern, "CapRoofRight", Vector3(0.29, 0.07, 0.46), Vector3(0.12, 0.43, 0), worn_wood).rotation_degrees.z = 22.0
+	_mesh_box(lantern, "GlowingFrontPane", Vector3(0.30, 0.42, 0.025), Vector3(0, 0.08, -0.19), glow_glass)
+	_mesh_box(lantern, "GlowingSidePane", Vector3(0.025, 0.42, 0.30), Vector3(-0.19, 0.08, 0), glow_glass)
+	_mesh_box(lantern, "LanternBase", Vector3(0.42, 0.09, 0.38), Vector3(0, -0.17, 0), iron)
+	for x in [-0.19, 0.19]:
+		for z in [-0.16, 0.16]:
+			_mesh_box(lantern, "IronCorner", Vector3(0.045, 0.48, 0.045), Vector3(x, 0.08, z), iron)
+	_mesh_box(lantern, "HangingLoop", Vector3(0.06, 0.16, 0.06), Vector3(0, 0.49, 0), iron)
+
+	var light := OmniLight3D.new()
+	light.name = "LanternGlow"
+	light.position = Vector3(-0.89, 2.55, 0.18)
+	light.light_color = Color(1.0, 0.48, 0.16)
+	light.light_energy = 1.6
+	light.omni_range = 7.0
+	light.omni_attenuation = 1.4
+	lamp.add_child(light)
 
 func _create_house() -> void:
 	var house := Node3D.new()
