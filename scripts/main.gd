@@ -294,27 +294,40 @@ func _create_ground_and_path() -> void:
 	ground.add_child(ground_collision)
 	add_child(ground)
 
-	# A winding dirt trail built from overlapping rounded sections instead of one straight slab.
-	var path_materials := [
-		_mat(Color(0.43, 0.34, 0.23)),
-		_mat(Color(0.48, 0.39, 0.27)),
-		_mat(Color(0.37, 0.30, 0.21))
-	]
-	for i in range(34):
-		var t := float(i) / 33.0
-		var z := lerpf(8.0, -34.0, t)
-		var x := sin(t * TAU * 1.15) * 1.45 + sin(t * TAU * 2.4) * 0.35
-		var section := MeshInstance3D.new()
-		section.name = "WindingPath_%02d" % i
-		var section_mesh := CylinderMesh.new()
-		section_mesh.top_radius = 1.35 + 0.18 * sin(t * TAU * 3.0)
-		section_mesh.bottom_radius = section_mesh.top_radius
-		section_mesh.height = 0.035
-		section.mesh = section_mesh
-		section.position = Vector3(x, 0.018, z)
-		section.rotation.y = sin(t * TAU * 1.15) * 0.22
-		section.material_override = path_materials[i % path_materials.size()]
-		add_child(section)
+	# One continuous ribbon follows a pronounced S-curve, with irregular edges.
+	var path_material := _mat(Color(0.39, 0.29, 0.19))
+	var segment_count := 100
+	var vertices := PackedVector3Array()
+	var indices := PackedInt32Array()
+	for i in range(segment_count + 1):
+		var t := float(i) / float(segment_count)
+		var z := lerpf(9.0, -35.0, t)
+		var x := sin(PI * t) * 4.8 * sin(TAU * 1.25 * t)
+		var half_width := 1.0 + 0.16 * sin(t * TAU * 5.0) + 0.08 * sin(t * TAU * 11.0)
+		var next_t := minf(1.0, t + 0.01)
+		var next_x := sin(PI * next_t) * 4.8 * sin(TAU * 1.25 * next_t)
+		var dx := next_x - x
+		var dz := -0.44
+		var side := Vector3(-dz, 0.0, dx).normalized()
+		var edge_noise := 0.08 * sin(t * TAU * 17.0)
+		var left := Vector3(x, 0.025, z) + side * (half_width + edge_noise)
+		var right := Vector3(x, 0.025, z) - side * (half_width - edge_noise)
+		vertices.append(left)
+		vertices.append(right)
+		if i < segment_count:
+			var base := i * 2
+			indices.append_array(PackedInt32Array([base, base + 2, base + 1, base + 1, base + 2, base + 3]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var path_mesh := ArrayMesh.new()
+	path_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var path := MeshInstance3D.new()
+	path.name = "WindingForestTrail"
+	path.mesh = path_mesh
+	path.material_override = path_material
+	add_child(path)
 
 func _create_forest() -> void:
 	var trunk_material := _mat(Color(0.22, 0.13, 0.085))
@@ -541,23 +554,62 @@ func _create_house() -> void:
 	house.name = "DistantHouse"
 	house.position = HOUSE_POSITION
 	add_child(house)
-	var wall_material := _mat(Color(0.40, 0.22, 0.14))
-	var roof_material := _mat(Color(0.17, 0.085, 0.065))
-	var door_material := _mat(Color(0.12, 0.065, 0.045))
-	_mesh_box(house, "HouseBody", Vector3(7.0, 3.2, 5.0), Vector3(0, 1.6, 0), wall_material)
-	_mesh_box(house, "Roof", Vector3(7.8, 0.35, 5.8), Vector3(0, 3.35, 0), roof_material)
-	_mesh_box(house, "FrontStep", Vector3(2.4, 0.18, 0.8), Vector3(0, 0.09, 2.8), roof_material)
-	door = _mesh_box(house, "Door", Vector3(1.15, 2.2, 0.12), Vector3(0, 1.1, 2.57), door_material)
-	door.position = Vector3(-0.57, 1.1, 2.57)
-	door.position += Vector3(0.57, 0, 0)
+
+	var wall_material := _mat(Color(0.20, 0.15, 0.12))
+	var roof_material := _mat(Color(0.12, 0.15, 0.16))
+	var roof_edge_material := _mat(Color(0.19, 0.22, 0.22))
+	var door_material := _mat(Color(0.09, 0.055, 0.04))
+	var trim_material := _mat(Color(0.31, 0.23, 0.15))
+	var window_frame := _mat(Color(0.10, 0.07, 0.045))
+	var window_glow := StandardMaterial3D.new()
+	window_glow.albedo_color = Color(1.0, 0.58, 0.19)
+	window_glow.emission_enabled = true
+	window_glow.emission = Color(1.0, 0.38, 0.08)
+	window_glow.emission_energy_multiplier = 2.4
+	window_glow.roughness = 0.65
+
+	# A small timber cabin with a proper triangular gable and two sloping roof planes.
+	_mesh_box(house, "HouseBody", Vector3(6.2, 2.8, 4.7), Vector3(0, 1.4, 0), wall_material)
+	var gable := MeshInstance3D.new()
+	gable.name = "FrontGable"
+	var gable_mesh := PrismMesh.new()
+	gable_mesh.size = Vector3(6.2, 2.25, 0.16)
+	gable.mesh = gable_mesh
+	gable.position = Vector3(0, 3.82, 2.30)
+	gable.material_override = wall_material
+	house.add_child(gable)
+
+	var roof_left := _mesh_box(house, "RoofLeftSlope", Vector3(3.65, 0.22, 5.35), Vector3(-1.65, 3.72, 0), roof_material)
+	roof_left.rotation.z = deg_to_rad(32.0)
+	var roof_right := _mesh_box(house, "RoofRightSlope", Vector3(3.65, 0.22, 5.35), Vector3(1.65, 3.72, 0), roof_material)
+	roof_right.rotation.z = deg_to_rad(-32.0)
+	_mesh_box(house, "FrontEave", Vector3(6.9, 0.16, 0.22), Vector3(0, 2.78, 2.43), roof_edge_material)
+	_mesh_box(house, "FrontStep", Vector3(2.4, 0.18, 0.8), Vector3(0, 0.09, 2.8), trim_material)
+
+	# Dark doorway with a wooden door that still opens using E.
+	_mesh_box(house, "Doorway", Vector3(1.35, 2.25, 0.08), Vector3(0, 1.12, 2.39), _mat(Color(0.025, 0.022, 0.02)))
+	door = _mesh_box(house, "Door", Vector3(1.05, 2.05, 0.12), Vector3(-0.53, 1.03, 2.48), door_material)
 	door.rotation_degrees.y = 0.0
-	# Pivot the door at its left edge so it can swing open.
-	door.position.x = -0.57
 	door.set_meta("closed_position", door.position)
-	var knob := _mesh_box(house, "DoorKnob", Vector3(0.08, 0.08, 0.08), Vector3(0.38, 1.0, 2.48), _mat(Color(0.55, 0.55, 0.56)))
-	knob.visible = true
-	# A simple dark opening behind the door gives the entrance depth.
-	_mesh_box(house, "Doorway", Vector3(1.35, 2.35, 0.08), Vector3(0, 1.15, 2.53), _mat(Color(0.035, 0.035, 0.04)))
+	_mesh_box(house, "DoorPanel", Vector3(0.72, 1.52, 0.035), Vector3(-0.53, 1.05, 2.405), trim_material)
+	_mesh_box(house, "DoorKnob", Vector3(0.07, 0.07, 0.07), Vector3(-0.18, 1.0, 2.36), _mat(Color(0.68, 0.48, 0.20)))
+
+	# Warm windows provide a focal point against the cool forest twilight.
+	for window_data in [
+		Vector3(-1.75, 1.85, 2.43),
+		Vector3(1.75, 1.85, 2.43),
+		Vector3(0.0, 3.45, 2.43)
+	]:
+		var frame := _mesh_box(house, "WindowFrame", Vector3(0.92, 0.92, 0.12), window_data, window_frame)
+		frame.position.z = 2.43
+		_mesh_box(house, "GlowingWindow", Vector3(0.68, 0.68, 0.035), Vector3(window_data.x, window_data.y, 2.355), window_glow)
+		_mesh_box(house, "WindowCrossbarV", Vector3(0.045, 0.72, 0.045), Vector3(window_data.x, window_data.y, 2.325), trim_material)
+		_mesh_box(house, "WindowCrossbarH", Vector3(0.72, 0.045, 0.045), Vector3(window_data.x, window_data.y, 2.325), trim_material)
+
+	var porch_roof := _mesh_box(house, "SmallPorchRoof", Vector3(3.8, 0.16, 1.4), Vector3(0, 2.65, 3.05), roof_material)
+	porch_roof.rotation.x = deg_to_rad(7.0)
+	for x in [-1.55, 1.55]:
+		_mesh_box(house, "PorchPost", Vector3(0.13, 2.45, 0.13), Vector3(x, 1.22, 3.55), trim_material)
 
 func _create_player() -> void:
 	player = CharacterBody3D.new()
