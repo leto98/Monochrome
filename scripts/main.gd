@@ -382,39 +382,76 @@ func _create_player() -> void:
 	head.material_override = skin
 	player.add_child(head)
 
-	# Slightly tapered upper arms and forearms create a child-like silhouette.
+	# Build each arm as a connected hierarchy so the wrist and hand follow the forearm.
+	# The hand is a simple palm with short fingers and a thumb, readable in silhouette.
 	var upper_arm_mesh := CapsuleMesh.new()
-	upper_arm_mesh.radius = 0.105
-	upper_arm_mesh.height = 0.48
+	upper_arm_mesh.radius = 0.09
+	upper_arm_mesh.height = 0.44
 	var forearm_mesh := CapsuleMesh.new()
-	forearm_mesh.radius = 0.085
-	forearm_mesh.height = 0.36
+	forearm_mesh.radius = 0.072
+	forearm_mesh.height = 0.34
+	var palm_mesh := CapsuleMesh.new()
+	palm_mesh.radius = 0.052
+	palm_mesh.height = 0.15
+	var finger_mesh := CapsuleMesh.new()
+	finger_mesh.radius = 0.014
+	finger_mesh.height = 0.075
+	var thumb_mesh := CapsuleMesh.new()
+	thumb_mesh.radius = 0.017
+	thumb_mesh.height = 0.07
 	for side in [-1.0, 1.0]:
-		var upper_arm := MeshInstance3D.new()
+		var upper_arm := Node3D.new()
 		upper_arm.name = "UpperArm_%s" % ("L" if side < 0 else "R")
-		upper_arm.mesh = upper_arm_mesh
-		upper_arm.position = Vector3(side * 0.29, -0.12, 0)
-		upper_arm.rotation.z = side * deg_to_rad(-14.0)
-		upper_arm.material_override = clothes
+		upper_arm.position = Vector3(side * 0.23, 0.15, 0.0)
 		player.add_child(upper_arm)
 
-		var forearm := MeshInstance3D.new()
-		forearm.name = "Forearm_%s" % ("L" if side < 0 else "R")
-		forearm.mesh = forearm_mesh
-		forearm.position = Vector3(side * 0.40, -0.39, -0.015)
-		forearm.rotation.z = side * deg_to_rad(-8.0)
-		forearm.material_override = clothes
-		player.add_child(forearm)
+		var upper_arm_visual := MeshInstance3D.new()
+		upper_arm_visual.name = "UpperArmMesh"
+		upper_arm_visual.mesh = upper_arm_mesh
+		upper_arm_visual.position = Vector3(side * 0.035, -0.19, 0.0)
+		upper_arm_visual.rotation.z = side * deg_to_rad(-5.0)
+		upper_arm_visual.material_override = clothes
+		upper_arm.add_child(upper_arm_visual)
 
-		var hand := MeshInstance3D.new()
+		var forearm := Node3D.new()
+		forearm.name = "Forearm_%s" % ("L" if side < 0 else "R")
+		forearm.position = Vector3(side * 0.055, -0.36, 0.0)
+		upper_arm.add_child(forearm)
+
+		var forearm_visual := MeshInstance3D.new()
+		forearm_visual.name = "ForearmMesh"
+		forearm_visual.mesh = forearm_mesh
+		forearm_visual.position = Vector3(side * 0.008, -0.145, -0.005)
+		forearm_visual.material_override = clothes
+		forearm.add_child(forearm_visual)
+
+		var hand := Node3D.new()
 		hand.name = "Hand_%s" % ("L" if side < 0 else "R")
-		var hand_mesh := SphereMesh.new()
-		hand_mesh.radius = 0.095
-		hand_mesh.height = 0.17
-		hand.mesh = hand_mesh
-		hand.position = Vector3(side * 0.43, -0.59, -0.015)
-		hand.material_override = hands_material
-		player.add_child(hand)
+		hand.position = Vector3(0.0, -0.30, -0.005)
+		forearm.add_child(hand)
+
+		var palm := MeshInstance3D.new()
+		palm.name = "Palm"
+		palm.mesh = palm_mesh
+		palm.position = Vector3(0.0, -0.025, 0.0)
+		palm.material_override = hands_material
+		hand.add_child(palm)
+
+		for finger_index in range(3):
+			var finger := MeshInstance3D.new()
+			finger.name = "Finger_%d" % finger_index
+			finger.mesh = finger_mesh
+			finger.position = Vector3((float(finger_index) - 1.0) * 0.032, -0.105, 0.0)
+			finger.material_override = hands_material
+			hand.add_child(finger)
+
+		var thumb := MeshInstance3D.new()
+		thumb.name = "Thumb"
+		thumb.mesh = thumb_mesh
+		thumb.position = Vector3(side * 0.052, -0.035, 0.005)
+		thumb.rotation.z = -side * deg_to_rad(48.0)
+		thumb.material_override = hands_material
+		hand.add_child(thumb)
 
 	# Separate legs and small feet make the stance clear from a distance.
 	var leg_mesh := CapsuleMesh.new()
