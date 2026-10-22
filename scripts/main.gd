@@ -700,7 +700,7 @@ func _create_house() -> void:
 	door.name = "DoorHinge"
 	door.position = Vector3(-0.97, 1.02, 2.39)
 	house.add_child(door)
-	var door_panel := _mesh_box(door, "Door", Vector3(0.98, 2.02, 0.12), Vector3(0.49, 0.0, 0.0), log_dark)
+	_mesh_box(door, "Door", Vector3(0.98, 2.02, 0.12), Vector3(0.49, 0.0, 0.0), log_dark)
 	door.rotation_degrees.y = 0.0
 	for plank in range(4):
 		_mesh_box(door, "DoorPlank_%d" % plank, Vector3(0.20, 1.82, 0.025), Vector3(0.20 + float(plank) * 0.19, 0.01, -0.075), log_mid)
@@ -843,7 +843,7 @@ func _create_expanded_landscape() -> void:
 		var mesh := BoxMesh.new()
 		mesh.size = Vector3(5.6, 0.10, 2.8)
 		segment.mesh = mesh
-		segment.position = Vector3(x, -0.26, z)
+		segment.position = Vector3(x, 0.065, z)
 		segment.rotation.y = atan2(next_x - x, -(lerpf(78.0, -78.0, next_t) - z))
 		segment.material_override = water_material
 		add_child(segment)
@@ -852,7 +852,7 @@ func _create_expanded_landscape() -> void:
 			var bank_mesh := BoxMesh.new()
 			bank_mesh.size = Vector3(1.2, 0.42, 3.0)
 			bank.mesh = bank_mesh
-			bank.position = Vector3(x + bank_side * 3.1, -0.04, z)
+			bank.position = Vector3(x + bank_side * 3.1, 0.12, z)
 			bank.rotation.y = segment.rotation.y
 			bank.material_override = soil_materials[1] if i % 3 == 0 else soil_materials[2]
 			add_child(bank)
@@ -866,7 +866,7 @@ func _create_expanded_landscape() -> void:
 		var mesh := BoxMesh.new()
 		mesh.size = Vector3(1.7, 0.06, 2.0)
 		stream.mesh = mesh
-		stream.position = Vector3(x, -0.72, z)
+		stream.position = Vector3(x, 0.055, z)
 		stream.rotation.y = sin(t * TAU * 1.2) * 0.12
 		stream.material_override = water_material
 		add_child(stream)
@@ -875,7 +875,7 @@ func _create_expanded_landscape() -> void:
 			var cliff_mesh := BoxMesh.new()
 			cliff_mesh.size = Vector3(rng.randf_range(2.0, 4.2), rng.randf_range(1.0, 2.3), 2.5)
 			cliff.mesh = cliff_mesh
-			cliff.position = Vector3(x + side * 3.0, -0.10 + cliff_mesh.size.y * 0.2, z)
+			cliff.position = Vector3(x + side * 3.0, 0.10 + cliff_mesh.size.y * 0.2, z)
 			cliff.rotation.z = side * rng.randf_range(-0.16, 0.16)
 			cliff.material_override = rock_materials[rng.randi_range(0, rock_materials.size() - 1)]
 			add_child(cliff)
@@ -885,7 +885,7 @@ func _create_expanded_landscape() -> void:
 	for i in range(12):
 		var fish := Node3D.new()
 		fish.name = "RiverFish_%02d" % i
-		fish.position = Vector3(27.0 + sin(float(i) * 1.7) * 1.6, -0.12, -72.0 + float(i) * 12.0)
+		fish.position = Vector3(27.0 + sin(float(i) * 1.7) * 1.6, 0.16, -72.0 + float(i) * 12.0)
 		fish.set_meta("home_x", fish.position.x)
 		var body := MeshInstance3D.new()
 		var body_mesh := SphereMesh.new()
